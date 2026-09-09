@@ -1,3 +1,8 @@
+enum Role {
+  USER
+  ADMIN
+}
+
 enum SessionType {
   DEFAULT
 }
@@ -5,4 +10,55 @@ enum SessionType {
 enum SessionRevokedReason {
   USER_REQUEST
   SECURITY_CONCERN
+  ACCOUNT_DELETION
+}
+
+enum ConsentType {
+  NEWSLETTER
+  RESTOCK_ALERT
+  REVIEW_REMINDER
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AttributeKind {
+  SELECT
+  COLOR
+  TEXT
+  NUMBER
+  BOOLEAN
+}
+
+enum CustomizationKind {
+  TEXT
+  SELECT
+  COLOR
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PREPARING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum ReviewStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
 }

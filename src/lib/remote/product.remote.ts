@@ -1,0 +1,46 @@
+import { error } from '@sveltejs/kit';
+import { searchFiltersSchema, suggestionSchema } from '#lib/client/validation/search';
+import {
+	findProductBySlug,
+	getSearchFacets,
+	listFeaturedProducts,
+	listRelatedProducts,
+	searchProducts,
+	suggestProducts
+} from '#lib/server/database/product';
+import * as v from 'valibot';
+import { query } from '$app/server';
+
+const slugSchema = v.pipe(v.string(), v.trim(), v.maxLength(120), v.minLength(1));
+
+export const getFeaturedProducts = query(async () => listFeaturedProducts());
+
+export const getProduct = query(slugSchema, async (slug) => {
+	const product = await findProductBySlug(slug);
+
+	if (!product) {
+		error(404, "Cette création n'existe pas ou n'est plus en ligne.");
+	}
+
+	const related = await listRelatedProducts(
+		product.id,
+		product.categories.map((category) => category.slug)
+	);
+
+	return { product, related };
+});
+
+export const searchCatalogue = query(searchFiltersSchema, async (filters) =>
+	searchProducts(filters)
+);
+
+export const getFacets = query(searchFiltersSchema, async (filters) => getSearchFacets(filters));
+
+/** Suggestions de la barre de recherche : volontairement legeres et rapides. */
+export const suggest = query(suggestionSchema, async (term) => {
+	if (term.length < 2) {
+		return [];
+	}
+
+	return suggestProducts(term);
+});

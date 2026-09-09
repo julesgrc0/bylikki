@@ -6,16 +6,17 @@ model Session {
 
   type       SessionType @default(DEFAULT)
   active     Boolean     @default(true)
-  secretHash String
+  secretHash String      @unique
 
   revokedAt     DateTime?
   revokedReason SessionRevokedReason?
 
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
 
-  ipAddress String
-  userAgent String
+  ipHash         String?
+  userAgentLabel String?
 
   @@index([userId, type, active])
   @@index([expiresAt])
@@ -24,19 +25,21 @@ model Session {
 model EmailOTP {
   id String @id @default(uuid(7))
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email    String
+  codeHash String
 
-  codeHash  String
-  expiresAt DateTime
-  usedAt    DateTime?
+  expiresAt  DateTime
+  consumedAt DateTime?
 
   attempts Int @default(0)
 
+  ipHash String?
+
   createdAt DateTime @default(now())
 
-  @@index([userId, usedAt])
+  @@index([email, consumedAt])
   @@index([expiresAt])
+  @@index([ipHash, createdAt])
 }
 
 model RevokedToken {

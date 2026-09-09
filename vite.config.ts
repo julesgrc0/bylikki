@@ -35,6 +35,8 @@ export default defineConfig({
 				handleRenderingErrors: true
 			},
 			alias: {
+				'#lib': path.resolve('./src/lib'),
+				'#lib/*': path.resolve('./src/lib/*'),
 				$prisma: path.resolve('./generated/prisma'),
 				'$prisma/*': path.resolve('./generated/prisma')
 			},
@@ -50,6 +52,7 @@ export default defineConfig({
 	],
 	resolve: {
 		alias: {
+			'#lib': path.resolve('./src/lib'),
 			$prisma: path.resolve('./generated/prisma')
 		}
 	},

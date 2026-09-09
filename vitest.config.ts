@@ -7,6 +7,7 @@ export default defineConfig({
 	plugins: [sveltekit(), svelteTesting()],
 	resolve: {
 		alias: {
+			'#lib': path.resolve('./src/lib'),
 			$prisma: path.resolve('./generated/prisma')
 		}
 	},

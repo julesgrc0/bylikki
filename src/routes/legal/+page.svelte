@@ -1,8 +1,9 @@
 <script lang="ts">
-	import LegalDocument from '#lib/components/LegalDocument.svelte';
-	import LegalNav from '#lib/components/LegalNav.svelte';
-	import { findLegalDoc } from '#lib/data/legal';
+	import { findLegalDoc } from '#lib/client/data/legal';
+	import LegalDocument from '#lib/client/ui/LegalDocument.svelte';
+	import LegalNav from '#lib/client/ui/LegalNav.svelte';
 	import { replaceState } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 
 	const doc = $derived(findLegalDoc(page.url.searchParams.get('doc')));
@@ -10,7 +11,7 @@
 	function pick(id: string) {
 		const url = new URL(page.url);
 		url.searchParams.set('doc', id);
-		replaceState(url, {});
+		replaceState(resolve(`/legal?${url.searchParams.toString()}`), {});
 	}
 </script>
 

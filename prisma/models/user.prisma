@@ -4,9 +4,61 @@ model User {
   email           String    @unique
   emailVerifiedAt DateTime?
 
+  role Role @default(USER)
+
+  displayName String?
+  phone       String?
+  avatarUrl   String?
+
   sessions  Session[]
-  emailOTPs EmailOTP[]
+  addresses Address[]
+  consents  UserConsent[]
+  orders    Order[]
+  reviews   Review[]
+
+  lastSeenAt          DateTime?
+  deletionRequestedAt DateTime?
+  anonymizedAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([deletionRequestedAt])
+}
+
+model Address {
+  id String @id @default(uuid(7))
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  label      String?
+  fullName   String
+  line1      String
+  line2      String?
+  postalCode String
+  city       String
+  country    String  @default("FR")
+
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, isDefault])
+}
+
+model UserConsent {
+  id String @id @default(uuid(7))
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    ConsentType
+  granted Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type])
 }
