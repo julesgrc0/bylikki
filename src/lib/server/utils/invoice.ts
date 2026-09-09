@@ -27,6 +27,9 @@ export type InvoiceOrder = {
 	contactEmail: string;
 	subtotalCents: number;
 	shippingCents: number;
+	discountCents: number;
+	discountLabel: string | null;
+	discountCode: string | null;
 	totalCents: number;
 	currency: string;
 	shippingFullName: string;
@@ -76,6 +79,9 @@ export function buildInvoice(order: InvoiceOrder) {
 			totalCents: item.totalCents
 		})),
 		subtotalCents: order.subtotalCents,
+		/** Une facture doit montrer les montants reellement payes, remise comprise. */
+		discountCents: order.discountCents,
+		discountLabel: order.discountLabel ?? order.discountCode,
 		shippingCents: order.shippingCents,
 		totalCents: order.totalCents,
 		currency: order.currency

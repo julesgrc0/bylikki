@@ -23,6 +23,7 @@ export const cartLineSchema = v.object({
 
 export const checkoutSchema = v.object({
 	addressId: v.pipe(v.string('Choisis une adresse de livraison.'), v.minLength(1)),
+	code: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), ''),
 	lines: v.pipe(
 		v.array(cartLineSchema),
 		v.minLength(1, 'Ton panier est vide.'),

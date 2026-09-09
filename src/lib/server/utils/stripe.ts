@@ -22,6 +22,8 @@ type CheckoutInput = {
 	currency: string;
 	customerEmail: string;
 	shippingCents: number;
+	discountCents: number;
+	discountLabel: string | null;
 	lines: { name: string; description: string | null; unitPriceCents: number; quantity: number }[];
 	successUrl: string;
 	cancelUrl: string;
@@ -55,9 +57,29 @@ export async function createCheckoutSession(input: CheckoutInput) {
 		});
 	}
 
+	/**
+	 * La remise passe par un coupon a usage unique plutot que par des prix
+	 * rabotes : Stripe ne sait pas facturer une ligne negative, et la cliente
+	 * voit ainsi la remise detaillee sur la page de paiement.
+	 */
+	const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
+
+	if (input.discountCents > 0) {
+		const coupon = await getStripe().coupons.create({
+			amount_off: input.discountCents,
+			currency: input.currency.toLowerCase(),
+			duration: 'once',
+			name: input.discountLabel ?? 'Remise',
+			metadata: { orderReference: input.reference }
+		});
+
+		discounts.push({ coupon: coupon.id });
+	}
+
 	return getStripe().checkout.sessions.create({
 		mode: 'payment',
 		line_items: lineItems,
+		...(discounts.length > 0 ? { discounts } : {}),
 		customer_email: input.customerEmail,
 		client_reference_id: input.reference,
 		metadata: { orderReference: input.reference },

@@ -2,6 +2,9 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
+CREATE TYPE "DiscountKind" AS ENUM ('PERCENTAGE', 'FIXED_AMOUNT', 'FREE_SHIPPING');
+
+-- CreateEnum
 CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
 
 -- CreateEnum
@@ -223,6 +226,53 @@ CREATE TABLE "CustomizationChoice" (
 );
 
 -- CreateTable
+CREATE TABLE "Discount" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "kind" "DiscountKind" NOT NULL DEFAULT 'PERCENTAGE',
+    "value" INTEGER NOT NULL DEFAULT 0,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "startsAt" TIMESTAMP(3),
+    "expiresAt" TIMESTAMP(3),
+    "maxUses" INTEGER,
+    "usedCount" INTEGER NOT NULL DEFAULT 0,
+    "maxUsesPerUser" INTEGER DEFAULT 1,
+    "minSubtotalCents" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Discount_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "DiscountRedemption" (
+    "id" TEXT NOT NULL,
+    "discountId" TEXT NOT NULL,
+    "userId" TEXT,
+    "orderId" TEXT NOT NULL,
+    "amountCents" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "DiscountRedemption_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LoyaltyTier" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "thresholdCents" INTEGER NOT NULL,
+    "discountPercent" INTEGER NOT NULL DEFAULT 0,
+    "freeShipping" BOOLEAN NOT NULL DEFAULT false,
+    "color" TEXT NOT NULL DEFAULT '#FFDE59',
+    "position" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LoyaltyTier_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "NewsletterIssue" (
     "id" TEXT NOT NULL,
     "subject" TEXT NOT NULL,
@@ -247,6 +297,10 @@ CREATE TABLE "Order" (
     "shippingCents" INTEGER NOT NULL DEFAULT 0,
     "totalCents" INTEGER NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'EUR',
+    "discountId" TEXT,
+    "discountCode" TEXT,
+    "discountLabel" TEXT,
+    "discountCents" INTEGER NOT NULL DEFAULT 0,
     "shippingFullName" TEXT NOT NULL,
     "shippingLine1" TEXT NOT NULL,
     "shippingLine2" TEXT,
@@ -362,6 +416,7 @@ CREATE TABLE "User" (
     "displayName" TEXT,
     "phone" TEXT,
     "avatarUrl" TEXT,
+    "lifetimeSpentCents" INTEGER NOT NULL DEFAULT 0,
     "lastSeenAt" TIMESTAMP(3),
     "deletionRequestedAt" TIMESTAMP(3),
     "anonymizedAt" TIMESTAMP(3),
@@ -515,6 +570,24 @@ CREATE INDEX "CustomizationChoice_optionId_position_idx" ON "CustomizationChoice
 CREATE UNIQUE INDEX "CustomizationChoice_optionId_value_key" ON "CustomizationChoice"("optionId", "value");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Discount_code_key" ON "Discount"("code");
+
+-- CreateIndex
+CREATE INDEX "Discount_active_expiresAt_idx" ON "Discount"("active", "expiresAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "DiscountRedemption_orderId_key" ON "DiscountRedemption"("orderId");
+
+-- CreateIndex
+CREATE INDEX "DiscountRedemption_discountId_userId_idx" ON "DiscountRedemption"("discountId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LoyaltyTier_thresholdCents_key" ON "LoyaltyTier"("thresholdCents");
+
+-- CreateIndex
+CREATE INDEX "LoyaltyTier_position_idx" ON "LoyaltyTier"("position");
+
+-- CreateIndex
 CREATE INDEX "NewsletterIssue_sentAt_idx" ON "NewsletterIssue"("sentAt");
 
 -- CreateIndex
@@ -626,7 +699,19 @@ ALTER TABLE "CustomizationOption" ADD CONSTRAINT "CustomizationOption_productId_
 ALTER TABLE "CustomizationChoice" ADD CONSTRAINT "CustomizationChoice_optionId_fkey" FOREIGN KEY ("optionId") REFERENCES "CustomizationOption"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "DiscountRedemption" ADD CONSTRAINT "DiscountRedemption_discountId_fkey" FOREIGN KEY ("discountId") REFERENCES "Discount"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DiscountRedemption" ADD CONSTRAINT "DiscountRedemption_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DiscountRedemption" ADD CONSTRAINT "DiscountRedemption_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_discountId_fkey" FOREIGN KEY ("discountId") REFERENCES "Discount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;

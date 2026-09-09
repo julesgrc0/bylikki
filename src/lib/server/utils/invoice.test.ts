@@ -10,6 +10,9 @@ function order(overrides: Partial<InvoiceOrder> = {}): InvoiceOrder {
 		contactEmail: 'emma@exemple.fr',
 		subtotalCents: 5200,
 		shippingCents: 490,
+		discountCents: 0,
+		discountLabel: null,
+		discountCode: null,
 		totalCents: 5690,
 		currency: 'EUR',
 		shippingFullName: 'Emma Durand',
@@ -80,5 +83,28 @@ describe('buildInvoice', () => {
 		const invoice = buildInvoice(order());
 
 		expect(invoice.seller.vatMention).toContain('293 B');
+	});
+});
+
+describe('remise sur la facture', () => {
+	test('une facture sans remise n en affiche pas', () => {
+		expect(buildInvoice(order()).discountCents).toBe(0);
+	});
+
+	test('la remise apparait avec son libelle', () => {
+		const invoice = buildInvoice(
+			order({ discountCents: 500, discountLabel: 'Bienvenue', totalCents: 5190 })
+		);
+
+		expect(invoice.discountCents).toBe(500);
+		expect(invoice.discountLabel).toBe('Bienvenue');
+	});
+
+	test('sans libelle, le code sert d etiquette', () => {
+		const invoice = buildInvoice(
+			order({ discountCents: 500, discountLabel: null, discountCode: 'BIENVENUE' })
+		);
+
+		expect(invoice.discountLabel).toBe('BIENVENUE');
 	});
 });

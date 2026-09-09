@@ -7,6 +7,7 @@
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import StoreIcon from '@lucide/svelte/icons/store';
 	import TagsIcon from '@lucide/svelte/icons/tags';
+	import TicketIcon from '@lucide/svelte/icons/ticket';
 	import UsersIcon from '@lucide/svelte/icons/users';
 	import { Separator } from '#lib/client/ui/shadcn/separator';
 	import { resolve } from '$app/paths';
@@ -21,6 +22,7 @@
 		{ href: resolve('/admin/comptes'), label: 'Comptes', icon: UsersIcon, exact: false },
 		{ href: resolve('/admin/avis'), label: 'Avis', icon: MessageSquareIcon, exact: false },
 		{ href: resolve('/admin/catalogue'), label: 'Catalogue', icon: TagsIcon, exact: false },
+		{ href: resolve('/admin/promotions'), label: 'Promotions', icon: TicketIcon, exact: false },
 		{ href: resolve('/admin/newsletter'), label: 'Newsletter', icon: MailIcon, exact: false },
 		{ href: resolve('/admin/parametres'), label: 'Paramètres', icon: SettingsIcon, exact: false }
 	];

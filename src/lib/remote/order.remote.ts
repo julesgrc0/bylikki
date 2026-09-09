@@ -1,18 +1,19 @@
 import { error } from '@sveltejs/kit';
 import { cartLineSchema, checkoutSchema } from '#lib/client/validation/cart';
 import { priceCartLines } from '#lib/server/database/cart';
+import { findDiscountQuota } from '#lib/server/database/discount';
 import {
 	attachStripeSession,
 	cancelUserOrder,
-	computeShippingCents,
 	createPendingOrder,
 	findOrderMailContext,
 	findUserOrder,
 	listUserOrders
 } from '#lib/server/database/order';
+import { priceCheckout } from '#lib/server/database/pricing';
 import { getSetting } from '#lib/server/database/settings';
 import { findAddress } from '#lib/server/database/user';
-import { requireUser } from '#lib/server/security/guard';
+import { getSessionUser, requireUser } from '#lib/server/security/guard';
 import { consumeRateLimit } from '#lib/server/security/rate-limit';
 import { buildCancellationMail, sendMailQuietly } from '#lib/server/utils/mailer';
 import { createCheckoutSession, isStripeConfigured } from '#lib/server/utils/stripe';
@@ -20,19 +21,33 @@ import { orderReferenceSchema } from '#lib/server/validation/order';
 import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 
-const cartSchema = v.pipe(v.array(cartLineSchema), v.maxLength(40));
+const cartSchema = v.object({
+	lines: v.pipe(v.array(cartLineSchema), v.maxLength(40)),
+	code: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(40)), '')
+});
 
 /** Panier revalide cote serveur : prix, stock et personnalisations. */
-export const getCartDetails = query(cartSchema, async (lines) => {
+export const getCartDetails = query(cartSchema, async ({ lines, code }) => {
+	const user = getSessionUser();
 	const cart = await priceCartLines(lines);
-	const shippingCents = await computeShippingCents(cart.subtotalCents);
+	const priced = await priceCheckout({
+		subtotalCents: cart.subtotalCents,
+		code: code === '' ? null : code,
+		userId: user?.id ?? null
+	});
 
 	return {
 		lines: cart.lines,
 		issues: cart.issues,
 		subtotalCents: cart.subtotalCents,
-		shippingCents,
-		totalCents: cart.subtotalCents + shippingCents,
+		discountCents: priced.discountCents,
+		discountLabel: priced.discount?.label ?? null,
+		discountCode: priced.discount?.code ?? null,
+		discountIssue: priced.discountIssue,
+		tier: priced.tier,
+		appliedFrom: priced.appliedFrom,
+		shippingCents: priced.shippingCents,
+		totalCents: priced.totalCents,
 		currency: cart.currency
 	};
 });
@@ -58,7 +73,7 @@ export const getMyOrder = query(orderReferenceSchema, async (reference) => {
  * Cree la commande en attente de paiement puis delegue l'encaissement a
  * Stripe Checkout : aucune donnee bancaire ne transite par le site.
  */
-export const startCheckout = command(checkoutSchema, async ({ addressId, lines }) => {
+export const startCheckout = command(checkoutSchema, async ({ addressId, lines, code }) => {
 	const user = requireUser();
 
 	/** Chaque tentative cree une commande et une session Stripe : on borne. */
@@ -95,6 +110,19 @@ export const startCheckout = command(checkoutSchema, async ({ addressId, lines }
 		error(400, 'Ton panier est vide.');
 	}
 
+	/** Le prix est refait ici : celui affiche au panier n'engage a rien. */
+	const priced = await priceCheckout({
+		subtotalCents: cart.subtotalCents,
+		code: code === '' ? null : code,
+		userId: user.id
+	});
+
+	if (priced.discountIssue) {
+		return { status: 'discount-invalid' as const, issue: priced.discountIssue };
+	}
+
+	const discountQuota = priced.discount ? await findDiscountQuota(priced.discount.id) : null;
+
 	const order = await createPendingOrder({
 		userId: user.id,
 		contactEmail: user.email,
@@ -107,8 +135,24 @@ export const startCheckout = command(checkoutSchema, async ({ addressId, lines }
 			country: address.country
 		},
 		lines: cart.lines,
-		currency: cart.currency
+		currency: cart.currency,
+		shippingCents: priced.shippingCents,
+		discountCents: priced.discountCents,
+		discount: priced.discount
+			? {
+					id: priced.discount.id,
+					code: priced.discount.code,
+					label: priced.discount.label,
+					amountCents: priced.discountCents,
+					maxUses: discountQuota?.maxUses ?? null
+				}
+			: null
 	});
+
+	/** Le quota vient d'etre epuise par quelqu'un d'autre : rien n'a ete cree. */
+	if (!order) {
+		return { status: 'discount-invalid' as const, issue: { status: 'exhausted' as const } };
+	}
 
 	const origin = getRequestEvent().url.origin;
 	const session = await createCheckoutSession({
@@ -116,6 +160,8 @@ export const startCheckout = command(checkoutSchema, async ({ addressId, lines }
 		currency: order.currency,
 		customerEmail: user.email,
 		shippingCents: order.shippingCents,
+		discountCents: order.discountCents,
+		discountLabel: order.discountLabel,
 		lines: cart.lines.map((line) => ({
 			name: line.productName,
 			description: [line.variantLabel, ...line.customization.map((entry) => entry.value)]

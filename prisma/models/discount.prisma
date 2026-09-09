@@ -1,0 +1,76 @@
+enum DiscountKind {
+  PERCENTAGE
+  FIXED_AMOUNT
+  FREE_SHIPPING
+}
+
+/// Code de reduction. L'expiration se joue sur deux axes independants : une
+/// fenetre de dates, et un nombre d'utilisations. Les deux sont facultatifs.
+model Discount {
+  id String @id @default(uuid(7))
+
+  /// Normalise en majuscules a l'ecriture, compare tel quel a la lecture
+  code        String       @unique
+  label       String
+  kind        DiscountKind @default(PERCENTAGE)
+  /// Pourcentage entier, ou montant en centimes selon `kind`
+  value       Int          @default(0)
+  active      Boolean      @default(true)
+
+  startsAt  DateTime?
+  expiresAt DateTime?
+
+  /// Quota global. `usedCount` est reserve a la creation de la commande et
+  /// relache si le paiement echoue : un panier abandonne ne consomme rien.
+  maxUses        Int?
+  usedCount      Int  @default(0)
+  maxUsesPerUser Int? @default(1)
+
+  minSubtotalCents Int @default(0)
+
+  redemptions DiscountRedemption[]
+  orders      Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, expiresAt])
+}
+
+/// Trace d'utilisation : sert au quota par personne et a l'historique.
+model DiscountRedemption {
+  id String @id @default(uuid(7))
+
+  discountId String
+  discount   Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  orderId String  @unique
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  amountCents Int
+
+  createdAt DateTime @default(now())
+
+  @@index([discountId, userId])
+}
+
+/// Palier de fidelite, configurable depuis l'administration. Le palier d'une
+/// cliente decoule du cumul de ses achats payes.
+model LoyaltyTier {
+  id String @id @default(uuid(7))
+
+  name            String
+  thresholdCents  Int     @unique
+  discountPercent Int     @default(0)
+  freeShipping    Boolean @default(false)
+  color           String  @default("#FFDE59")
+  position        Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([position])
+}

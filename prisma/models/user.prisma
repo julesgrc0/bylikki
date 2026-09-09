@@ -19,6 +19,11 @@ model User {
   wishlist      WishlistItem[]
   restockAlerts RestockAlert[]
   reviewVotes   ReviewVote[]
+  redemptions   DiscountRedemption[]
+
+  /// Cumul des achats payes, denormalise : il determine le palier de fidelite
+  /// et redescend en cas de remboursement
+  lifetimeSpentCents Int @default(0)
 
   lastSeenAt          DateTime?
   deletionRequestedAt DateTime?

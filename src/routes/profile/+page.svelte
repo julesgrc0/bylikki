@@ -4,12 +4,14 @@
 	import ConsentToggle from '#lib/client/ui/ConsentToggle.svelte';
 	import DangerZone from '#lib/client/ui/DangerZone.svelte';
 	import EmptyState from '#lib/client/ui/EmptyState.svelte';
+	import LoyaltyCard from '#lib/client/ui/LoyaltyCard.svelte';
 	import OrderCard from '#lib/client/ui/OrderCard.svelte';
 	import ProductGrid from '#lib/client/ui/ProductGrid.svelte';
 	import SessionList from '#lib/client/ui/SessionList.svelte';
 	import { constrainsOf } from '#lib/client/validation/constrains';
 	import { profileSchema } from '#lib/client/validation/profile';
 	import { signOut } from '#lib/remote/auth.remote';
+	import { getMyLoyalty } from '#lib/remote/loyalty.remote';
 	import { getMyOrders } from '#lib/remote/order.remote';
 	import {
 		exportMyData,
@@ -146,6 +148,14 @@
 	>
 		Paiement interrompu — ton panier est toujours là.
 	</p>
+{/if}
+
+{#if tab === 'achats'}
+	<div class="px-5 pt-4 lg:px-[70px]">
+		{#await getMyLoyalty() then loyalty}
+			<LoyaltyCard {loyalty} />
+		{/await}
+	</div>
 {/if}
 
 {#if tab === 'envies'}

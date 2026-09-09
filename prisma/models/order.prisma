@@ -17,6 +17,16 @@ model Order {
   totalCents    Int
   currency      String @default("EUR")
 
+  /// Remise appliquee : le code et son libelle sont figes, pour qu'en
+  /// supprimer un n'altere jamais une facture deja emise
+  discountId    String?
+  discount      Discount? @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  discountCode  String?
+  discountLabel String?
+  discountCents Int       @default(0)
+
+  discountRedemption DiscountRedemption?
+
   /// Instantane de l'adresse au moment de la commande : la modifier ou la
   /// supprimer cote compte ne doit pas alterer une facture deja emise
   shippingFullName   String

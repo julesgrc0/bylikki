@@ -98,6 +98,12 @@
 					<dt class="m-0">Sous-total</dt>
 					<dd class="m-0">{formatPrice(invoice.subtotalCents)}</dd>
 				</div>
+				{#if invoice.discountCents > 0}
+					<div class="flex justify-between py-1">
+						<dt class="m-0">Remise{invoice.discountLabel ? ` — ${invoice.discountLabel}` : ''}</dt>
+						<dd class="m-0">−{formatPrice(invoice.discountCents)}</dd>
+					</div>
+				{/if}
 				<div class="flex justify-between py-1">
 					<dt class="m-0">Livraison</dt>
 					<dd class="m-0">

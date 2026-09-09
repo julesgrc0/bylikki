@@ -2,6 +2,7 @@ import { settingDefaults } from '#lib/client/validation/settings';
 import type { Prisma } from '$prisma/client';
 import { generateOrderReference } from '../utils/reference';
 import { prisma } from './client';
+import { releaseDiscount, reserveDiscount } from './discount';
 import { getSetting } from './settings';
 
 const INVOICE_COUNTER = 'invoice';
@@ -33,6 +34,10 @@ const orderSelect = {
 	paymentStatus: true,
 	subtotalCents: true,
 	shippingCents: true,
+	discountCents: true,
+	discountCode: true,
+	discountLabel: true,
+	discountId: true,
 	totalCents: true,
 	currency: true,
 	shippingFullName: true,
@@ -90,49 +95,91 @@ export type PricedLine = {
 	customization: CheckoutLine['customization'];
 };
 
+export type OrderDiscount = {
+	id: string;
+	code: string;
+	label: string;
+	amountCents: number;
+	maxUses: number | null;
+};
+
+/**
+ * Cree la commande et, s'il y a un code, reserve son utilisation dans la meme
+ * transaction. Si le quota vient d'etre epuise par quelqu'un d'autre, rien
+ * n'est cree : mieux vaut refuser avant le paiement qu'encaisser une remise
+ * qui n'existe plus.
+ */
 export async function createPendingOrder(input: {
 	userId: string;
 	contactEmail: string;
 	address: ShippingAddressSnapshot;
 	lines: PricedLine[];
 	currency: string;
+	shippingCents: number;
+	discountCents: number;
+	discount: OrderDiscount | null;
 }) {
 	const subtotalCents = input.lines.reduce(
 		(total, line) => total + line.unitPriceCents * line.quantity,
 		0
 	);
-	const shippingCents = await computeShippingCents(subtotalCents);
+	const { shippingCents, discountCents, discount } = input;
 
-	return prisma.order.create({
-		data: {
-			reference: generateOrderReference(),
-			userId: input.userId,
-			contactEmail: input.contactEmail,
-			subtotalCents,
-			shippingCents,
-			totalCents: subtotalCents + shippingCents,
-			currency: input.currency,
-			shippingFullName: input.address.fullName,
-			shippingLine1: input.address.line1,
-			shippingLine2: input.address.line2,
-			shippingPostalCode: input.address.postalCode,
-			shippingCity: input.address.city,
-			shippingCountry: input.address.country,
-			items: {
-				create: input.lines.map((line) => ({
-					productId: line.productId,
-					variantId: line.variantId,
-					productSlug: line.productSlug,
-					productName: line.productName,
-					variantLabel: line.variantLabel,
-					unitPriceCents: line.unitPriceCents,
-					quantity: line.quantity,
-					totalCents: line.unitPriceCents * line.quantity,
-					customization: line.customization.length > 0 ? line.customization : undefined
-				}))
+	return prisma.$transaction(async (transaction) => {
+		if (discount) {
+			const reserved = await reserveDiscount(transaction, discount.id, discount.maxUses);
+
+			if (!reserved) {
+				return null;
 			}
-		},
-		select: orderSelect
+		}
+
+		return transaction.order.create({
+			data: {
+				reference: generateOrderReference(),
+				userId: input.userId,
+				contactEmail: input.contactEmail,
+				subtotalCents,
+				shippingCents,
+				discountCents,
+				discountId: discount?.id ?? null,
+				discountCode: discount?.code ?? null,
+				discountLabel: discount?.label ?? null,
+				totalCents: subtotalCents - discountCents + shippingCents,
+				currency: input.currency,
+				shippingFullName: input.address.fullName,
+				shippingLine1: input.address.line1,
+				shippingLine2: input.address.line2,
+				shippingPostalCode: input.address.postalCode,
+				shippingCity: input.address.city,
+				shippingCountry: input.address.country,
+				items: {
+					create: input.lines.map((line) => ({
+						productId: line.productId,
+						variantId: line.variantId,
+						productSlug: line.productSlug,
+						productName: line.productName,
+						variantLabel: line.variantLabel,
+						unitPriceCents: line.unitPriceCents,
+						quantity: line.quantity,
+						totalCents: line.unitPriceCents * line.quantity,
+						customization: line.customization.length > 0 ? line.customization : undefined
+					}))
+				},
+				...(discount
+					? {
+							discountRedemption: {
+								create: {
+									discountId: discount.id,
+									userId: input.userId,
+									amountCents: discountCents
+								}
+							}
+						}
+					: {})
+			},
+			select: orderSelect
+		});
 	});
 }
 
@@ -181,6 +228,8 @@ export async function markOrderPaid(
 			where: { stripeSessionId },
 			select: {
 				id: true,
+				userId: true,
+				totalCents: true,
 				paymentStatus: true,
 				items: {
 					select: {
@@ -243,6 +292,14 @@ export async function markOrderPaid(
 		const invoiceNumber = await nextInvoiceNumber(transaction);
 		const now = new Date();
 
+		/** Le cumul des achats determine le palier de fidelite. */
+		if (order.userId) {
+			await transaction.user.update({
+				where: { id: order.userId },
+				data: { lifetimeSpentCents: { increment: order.totalCents } }
+			});
+		}
+
 		const updated = await transaction.order.update({
 			where: { id: order.id },
 			data: {
@@ -284,6 +341,8 @@ export async function markOrderRefunded(paymentIntentId: string) {
 			where: { stripePaymentIntentId: paymentIntentId },
 			select: {
 				id: true,
+				userId: true,
+				totalCents: true,
 				paymentStatus: true,
 				items: { select: { variantId: true, stockTaken: true } }
 			}
@@ -291,6 +350,14 @@ export async function markOrderRefunded(paymentIntentId: string) {
 
 		if (!order || order.paymentStatus === 'REFUNDED') {
 			return null;
+		}
+
+		/** Un achat rembourse ne doit pas faire monter de palier. */
+		if (order.userId) {
+			await transaction.user.update({
+				where: { id: order.userId },
+				data: { lifetimeSpentCents: { decrement: order.totalCents } }
+			});
 		}
 
 		for (const item of order.items) {
@@ -314,11 +381,34 @@ export async function markOrderRefunded(paymentIntentId: string) {
 	});
 }
 
-export function markOrderPaymentFailed(stripeSessionId: string) {
-	return prisma.order.updateMany({
-		where: { stripeSessionId, paymentStatus: 'PENDING' },
+/**
+ * Paiement echoue ou expire : la commande n'a jamais eu lieu, la reservation du
+ * code est donc entierement relachee — le quota global *et* la trace
+ * d'utilisation, faute de quoi la cliente resterait bloquee sur un code qu'elle
+ * n'a jamais consomme. Un remboursement, lui, laisse le code consomme : l'achat
+ * a bien eu lieu.
+ */
+export async function markOrderPaymentFailed(stripeSessionId: string) {
+	const order = await prisma.order.findUnique({
+		where: { stripeSessionId },
+		select: { id: true, paymentStatus: true, discountId: true }
+	});
+
+	if (!order || order.paymentStatus !== 'PENDING') {
+		return { count: 0 };
+	}
+
+	const updated = await prisma.order.updateMany({
+		where: { id: order.id, paymentStatus: 'PENDING' },
 		data: { paymentStatus: 'FAILED' }
 	});
+
+	if (updated.count > 0 && order.discountId) {
+		await prisma.discountRedemption.deleteMany({ where: { orderId: order.id } });
+		await releaseDiscount(order.discountId);
+	}
+
+	return updated;
 }
 
 export function listUserOrders(userId: string) {

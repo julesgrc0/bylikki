@@ -11,9 +11,22 @@
 
 	let checkoutError = $state('');
 	let pending = $state(false);
+	/** Code saisi par la cliente : le serveur seul decide de ce qu'il vaut. */
+	let code = $state('');
+	let appliedCode = $state('');
 
-	/** Le serveur revalide prix, stock et personnalisations a chaque ouverture. */
-	const details = $derived(cart.lines.length > 0 ? getCartDetails(cart.toPayload()) : null);
+	/** Le serveur revalide prix, stock, remise et personnalisations a chaque ouverture. */
+	const details = $derived(
+		cart.lines.length > 0 ? getCartDetails({ lines: cart.toPayload(), code: appliedCode }) : null
+	);
+
+	const discountMessages: Record<string, string> = {
+		unknown: "Ce code n'existe pas.",
+		expired: "Ce code n'est plus valable.",
+		exhausted: 'Ce code a atteint son nombre maximum d’utilisations.',
+		'already-used': 'Tu as déjà utilisé ce code.',
+		minimum: 'Ton panier n’atteint pas le minimum demandé par ce code.'
+	};
 	const profile = $derived(signedIn && ui.cartOpen ? getProfile() : null);
 
 	async function checkout() {
@@ -29,10 +42,21 @@
 		pending = true;
 
 		try {
-			const result = await startCheckout({ addressId: address.id, lines: cart.toPayload() });
+			const result = await startCheckout({
+				addressId: address.id,
+				lines: cart.toPayload(),
+				code: appliedCode
+			});
 
 			if (result.status === 'invalid') {
 				checkoutError = result.issues.map((issue) => issue.message).join(' ');
+				return;
+			}
+
+			if (result.status === 'discount-invalid') {
+				checkoutError =
+					discountMessages[result.issue.status] ?? "Ce code n'a pas pu être appliqué.";
+				appliedCode = '';
 				return;
 			}
 
@@ -154,9 +178,52 @@
 			{#await details}
 				<div class="mb-4 h-[52px] animate-pulse rounded-[16px] bg-ink/5"></div>
 			{:then cartDetails}
+				<!-- code de réduction -->
+				<div class="mb-3.5 flex flex-col gap-1.5">
+					<div class="flex gap-2">
+						<input
+							bind:value={code}
+							placeholder="Code de réduction"
+							maxlength={40}
+							aria-label="Code de réduction"
+							class="min-w-0 flex-1 rounded-[14px] border-[1.5px] border-ink/25 bg-paper px-3.5 py-2.5 text-[14px] uppercase outline-none focus:border-pink"
+						/>
+						<button
+							onclick={() => (appliedCode = code.trim())}
+							disabled={code.trim() === ''}
+							class="cursor-pointer rounded-[14px] border-[1.5px] border-ink bg-paper px-4 py-2.5 text-[14px] font-semibold disabled:opacity-40"
+						>
+							Appliquer
+						</button>
+					</div>
+
+					{#if cartDetails.discountIssue}
+						<span class="text-[13px] font-semibold text-pink-deep">
+							{discountMessages[cartDetails.discountIssue.status] ??
+								"Ce code n'a pas pu être appliqué."}
+						</span>
+					{/if}
+				</div>
+
 				<div class="mb-1.5 flex justify-between text-[15px]">
 					<span>Sous-total</span><span>{formatPrice(cartDetails.subtotalCents)}</span>
 				</div>
+
+				{#if cartDetails.discountCents > 0}
+					<div class="mb-1.5 flex justify-between text-[15px] text-pink-deep">
+						<span>
+							{#if cartDetails.appliedFrom === 'loyalty'}
+								Fidélité — {cartDetails.tier?.name}
+							{:else if cartDetails.appliedFrom === 'both'}
+								{cartDetails.discountLabel} + fidélité
+							{:else}
+								{cartDetails.discountLabel ?? 'Remise'}
+							{/if}
+						</span>
+						<span>−{formatPrice(cartDetails.discountCents)}</span>
+					</div>
+				{/if}
+
 				<div class="mb-1.5 flex justify-between text-[15px]">
 					<span>Livraison</span>
 					<span>
