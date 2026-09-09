@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toMessage } from '#lib/client/utils/errors';
 	import { formatPrice } from '#lib/client/utils/money';
 	import { cancelMyOrder, type getMyOrders } from '#lib/remote/order.remote';
 
@@ -39,7 +40,7 @@
 		try {
 			await cancelMyOrder(order.reference);
 		} catch (error) {
-			feedback = error instanceof Error ? error.message : "L'annulation a échoué.";
+			feedback = toMessage(error, "L'annulation a échoué.");
 		} finally {
 			pending = false;
 		}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { toMessage } from '#lib/client/utils/errors';
 	import { cancelDeletion, requestDeletion } from '#lib/remote/user.remote';
 
 	let { requestedAt = null }: { requestedAt?: Date | null } = $props();
@@ -24,7 +25,7 @@
 			step = 'idle';
 			word = '';
 		} catch (cause) {
-			error = cause instanceof Error ? cause.message : 'La demande a échoué.';
+			error = toMessage(cause, 'La demande a échoué.');
 		} finally {
 			pending = false;
 		}
@@ -37,7 +38,7 @@
 		try {
 			await cancelDeletion();
 		} catch (cause) {
-			error = cause instanceof Error ? cause.message : "L'annulation a échoué.";
+			error = toMessage(cause, "L'annulation a échoué.");
 		} finally {
 			pending = false;
 		}

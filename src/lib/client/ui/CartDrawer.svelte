@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cart, ui } from '#lib/client/state/shop.svelte';
+	import { toMessage } from '#lib/client/utils/errors';
 	import { formatPrice } from '#lib/client/utils/money';
 	import { getCartDetails, startCheckout } from '#lib/remote/order.remote';
 	import { getProfile } from '#lib/remote/user.remote';
@@ -37,8 +38,7 @@
 
 			window.location.href = result.url;
 		} catch (error) {
-			checkoutError =
-				error instanceof Error ? error.message : "La commande n'a pas pu etre lancee.";
+			checkoutError = toMessage(error, "La commande n'a pas pu etre lancee.");
 		} finally {
 			pending = false;
 		}

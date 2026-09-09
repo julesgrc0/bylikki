@@ -38,7 +38,7 @@ export function isBlobConfigured() {
  * contient jamais le nom du fichier d'origine, qui peut etre identifiant.
  */
 export async function uploadImage(
-	folder: 'avatars' | 'avis',
+	folder: 'avatars' | 'avis' | 'produits',
 	file: File,
 	preset: keyof typeof imagePresets
 ) {

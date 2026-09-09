@@ -31,7 +31,7 @@
 <svelte:window onscroll={onScroll} />
 
 <div class="mx-auto flex min-h-screen max-w-[1440px] flex-col bg-cream">
-	<TopBar {fuse} signedIn={data.signedIn} />
+	<TopBar {fuse} signedIn={data.signedIn} isAdmin={data.isAdmin} />
 	<MenuDrawer signedIn={data.signedIn} />
 	<CartDrawer signedIn={data.signedIn} />
 	<SearchBar />

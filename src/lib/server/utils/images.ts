@@ -14,7 +14,9 @@ export const imagePresets = {
 	/** Photo de profil : petite, carree, affichee au maximum en 160 px. */
 	avatar: { maxWidth: 320, maxHeight: 320, quality: 72 },
 	/** Photo d'avis : lisible en pleine largeur mobile sans peser lourd. */
-	review: { maxWidth: 1280, maxHeight: 1280, quality: 74 }
+	review: { maxWidth: 1280, maxHeight: 1280, quality: 74 },
+	/** Photo de catalogue : la plus grande, affichee en fiche produit. */
+	product: { maxWidth: 1600, maxHeight: 1600, quality: 78 }
 } satisfies Record<string, ImagePreset>;
 
 /**

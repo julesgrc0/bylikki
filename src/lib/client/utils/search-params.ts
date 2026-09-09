@@ -70,3 +70,14 @@ export function searchParamsFromFilters(filters: SearchFilters) {
 
 	return params;
 }
+
+/**
+ * Construit une chaine de requete sans instancier URLSearchParams : les pages
+ * Svelte doivent eviter les objets natifs mutables (regle prefer-svelte-reactivity).
+ */
+export function buildQueryString(entries: [string, string][]) {
+	return entries
+		.filter(([, value]) => value !== '')
+		.map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+		.join('&');
+}

@@ -4,7 +4,11 @@
 	import Logo from './Logo.svelte';
 	import TornEdge from './TornEdge.svelte';
 
-	let { fuse = 0, signedIn = false }: { fuse?: number; signedIn?: boolean } = $props();
+	let {
+		fuse = 0,
+		signedIn = false,
+		isAdmin = false
+	}: { fuse?: number; signedIn?: boolean; isAdmin?: boolean } = $props();
 </script>
 
 <header class="sticky top-0 z-50">
@@ -29,6 +33,11 @@
 		</div>
 
 		<div class="relative flex items-center gap-4 text-[17px] lg:gap-6 lg:text-[19px]">
+			{#if isAdmin}
+				<a href={resolve('/admin')} class="hidden text-[13px] font-semibold text-pink lg:inline">
+					Admin
+				</a>
+			{/if}
 			<button onclick={() => ui.toggleSearch()} class="cursor-pointer" aria-label="Rechercher">
 				⌕ <span class="hidden text-[14px] lg:inline">Recherche</span>
 			</button>

@@ -1,9 +1,9 @@
 <script lang="ts">
+	import { toMessage } from '#lib/client/utils/errors';
+
 	let { error, reset }: { error: unknown; reset: () => void } = $props();
 
-	const message = $derived(
-		error instanceof Error ? error.message : 'Le contenu n’a pas pu être chargé.'
-	);
+	const message = $derived(toMessage(error, 'Le contenu n’a pas pu être chargé.'));
 </script>
 
 <div class="flex flex-col items-center gap-4 px-5 py-20 text-center lg:px-[70px]">
