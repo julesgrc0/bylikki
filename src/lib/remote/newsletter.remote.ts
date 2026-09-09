@@ -1,4 +1,5 @@
 import { error } from '@sveltejs/kit';
+import { issueSchema } from '#lib/client/validation/newsletter';
 import {
 	createIssue,
 	deleteIssue,
@@ -15,21 +16,6 @@ import * as v from 'valibot';
 import { command, getRequestEvent, query } from '$app/server';
 
 const identifierSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(80));
-
-export const issueSchema = v.object({
-	subject: v.pipe(
-		v.string('Donne un objet à cette lettre.'),
-		v.trim(),
-		v.minLength(3, 'Cet objet est trop court.'),
-		v.maxLength(120, 'Cet objet est trop long.')
-	),
-	body: v.pipe(
-		v.string('Écris le contenu de la lettre.'),
-		v.trim(),
-		v.minLength(20, 'Cette lettre est trop courte.'),
-		v.maxLength(8000, 'Cette lettre est trop longue.')
-	)
-});
 
 export const getIssues = query(async () => {
 	requireAdmin();

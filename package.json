@@ -9,7 +9,7 @@
 		"build": "run-s prepare sv:build",
 		"format": "prettier --write .",
 		"lint": "eslint . --fix",
-		"all": "run-s prepare format lint sv:check sv:test",
+		"all": "run-s prepare format lint sv:check sv:test sv:build",
 		"sv:dev": "vite dev --host --port 3000",
 		"sv:build": "vite build",
 		"sv:prepare": "svelte-kit sync",
