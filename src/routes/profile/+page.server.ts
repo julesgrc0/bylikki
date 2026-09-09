@@ -11,6 +11,7 @@ export const load: PageServerLoad = ({ locals, url }) => {
 	}
 
 	return {
+		tab: url.searchParams.get('onglet'),
 		orderReference: url.searchParams.get('commande'),
 		paymentCancelled: url.searchParams.get('paiement') === 'annule'
 	};

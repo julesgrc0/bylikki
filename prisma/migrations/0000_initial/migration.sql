@@ -223,6 +223,19 @@ CREATE TABLE "CustomizationChoice" (
 );
 
 -- CreateTable
+CREATE TABLE "NewsletterIssue" (
+    "id" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "sentAt" TIMESTAMP(3),
+    "recipientCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "NewsletterIssue_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Order" (
     "id" TEXT NOT NULL,
     "reference" TEXT NOT NULL,
@@ -247,6 +260,7 @@ CREATE TABLE "Order" (
     "invoicedAt" TIMESTAMP(3),
     "needsAttention" BOOLEAN NOT NULL DEFAULT false,
     "attentionReason" TEXT,
+    "reviewReminderSentAt" TIMESTAMP(3),
     "paidAt" TIMESTAMP(3),
     "shippedAt" TIMESTAMP(3),
     "deliveredAt" TIMESTAMP(3),
@@ -340,6 +354,27 @@ CREATE TABLE "User" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WishlistItem" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "WishlistItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RestockAlert" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "variantId" TEXT NOT NULL,
+    "notifiedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "RestockAlert_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -465,6 +500,9 @@ CREATE INDEX "CustomizationChoice_optionId_position_idx" ON "CustomizationChoice
 CREATE UNIQUE INDEX "CustomizationChoice_optionId_value_key" ON "CustomizationChoice"("optionId", "value");
 
 -- CreateIndex
+CREATE INDEX "NewsletterIssue_sentAt_idx" ON "NewsletterIssue"("sentAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Order_reference_key" ON "Order"("reference");
 
 -- CreateIndex
@@ -505,6 +543,18 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE INDEX "User_deletionRequestedAt_idx" ON "User"("deletionRequestedAt");
+
+-- CreateIndex
+CREATE INDEX "WishlistItem_userId_createdAt_idx" ON "WishlistItem"("userId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WishlistItem_userId_productId_key" ON "WishlistItem"("userId", "productId");
+
+-- CreateIndex
+CREATE INDEX "RestockAlert_variantId_notifiedAt_idx" ON "RestockAlert"("variantId", "notifiedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RestockAlert_userId_variantId_key" ON "RestockAlert"("userId", "variantId");
 
 -- CreateIndex
 CREATE INDEX "Address_userId_isDefault_idx" ON "Address"("userId", "isDefault");
@@ -568,6 +618,18 @@ ALTER TABLE "Review" ADD CONSTRAINT "Review_userId_fkey" FOREIGN KEY ("userId") 
 
 -- AddForeignKey
 ALTER TABLE "ReviewPhoto" ADD CONSTRAINT "ReviewPhoto_reviewId_fkey" FOREIGN KEY ("reviewId") REFERENCES "Review"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WishlistItem" ADD CONSTRAINT "WishlistItem_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WishlistItem" ADD CONSTRAINT "WishlistItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RestockAlert" ADD CONSTRAINT "RestockAlert_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RestockAlert" ADD CONSTRAINT "RestockAlert_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ProductVariant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Address" ADD CONSTRAINT "Address_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

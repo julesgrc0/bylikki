@@ -1,7 +1,7 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
-	import { ui } from '#lib/client/state/shop.svelte';
+	import { ui, wishlist } from '#lib/client/state/shop.svelte';
 	import AnnouncementBar from '#lib/client/ui/AnnouncementBar.svelte';
 	import CartDrawer from '#lib/client/ui/CartDrawer.svelte';
 	import MenuDrawer from '#lib/client/ui/MenuDrawer.svelte';
@@ -9,11 +9,37 @@
 	import SearchBar from '#lib/client/ui/SearchBar.svelte';
 	import SiteFooter from '#lib/client/ui/SiteFooter.svelte';
 	import TopBar from '#lib/client/ui/TopBar.svelte';
+	import { importWishlist } from '#lib/remote/wishlist.remote';
 
 	let { children, data } = $props();
 
 	/** fondu rose de la topbar au scroll, comme dans la maquette */
 	let fuse = $state(0);
+
+	let wishlistSynced = $state(false);
+
+	/**
+	 * A la connexion, les coeurs poses avant de creer un compte rejoignent le
+	 * compte, puis le serveur redevient la source de verite. Une seule fois par
+	 * chargement : les bascules suivantes sont deja appliquees localement.
+	 */
+	$effect(() => {
+		if (wishlistSynced || !data.signedIn) {
+			return;
+		}
+
+		wishlistSynced = true;
+		const pending = wishlist.pending().filter((id) => !data.wishlist.includes(id));
+
+		if (pending.length === 0) {
+			wishlist.adopt(data.wishlist);
+			return;
+		}
+
+		importWishlist(pending)
+			.then(() => wishlist.adopt([...new Set([...data.wishlist, ...pending])]))
+			.catch(() => wishlist.adopt(data.wishlist));
+	});
 
 	function onScroll() {
 		fuse = Math.max(0, Math.min(1, window.scrollY / 420));

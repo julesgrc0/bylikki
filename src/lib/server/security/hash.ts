@@ -65,6 +65,19 @@ export function hashClientAddress(event: RequestEvent) {
 	}
 }
 
+/**
+ * Lien de desinscription valable sans connexion : la signature authentifie
+ * l'identifiant, personne ne peut donc desabonner quelqu'un d'autre. Aucun
+ * jeton n'est stocke, le lien reste valable tant que la cle ne change pas.
+ */
+export function signUnsubscribe(userId: string) {
+	return hmacHex('unsubscribe', userId);
+}
+
+export function verifyUnsubscribe(userId: string, signature: string) {
+	return safeEqual(signUnsubscribe(userId), signature);
+}
+
 /** Comparaison a temps constant, pour ne pas fuiter d'information par la duree. */
 export function safeEqual(left: string, right: string) {
 	const leftBuffer = Buffer.from(left, 'utf8');

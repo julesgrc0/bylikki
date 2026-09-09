@@ -1,6 +1,7 @@
 <script lang="ts">
 	import BoxIcon from '@lucide/svelte/icons/box';
 	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
+	import MailIcon from '@lucide/svelte/icons/mail';
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
 	import ReceiptIcon from '@lucide/svelte/icons/receipt';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
@@ -20,6 +21,7 @@
 		{ href: resolve('/admin/comptes'), label: 'Comptes', icon: UsersIcon, exact: false },
 		{ href: resolve('/admin/avis'), label: 'Avis', icon: MessageSquareIcon, exact: false },
 		{ href: resolve('/admin/catalogue'), label: 'Catalogue', icon: TagsIcon, exact: false },
+		{ href: resolve('/admin/newsletter'), label: 'Newsletter', icon: MailIcon, exact: false },
 		{ href: resolve('/admin/parametres'), label: 'Paramètres', icon: SettingsIcon, exact: false }
 	];
 

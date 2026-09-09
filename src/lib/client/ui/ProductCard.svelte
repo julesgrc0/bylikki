@@ -3,6 +3,7 @@
 	import { formatPriceRange } from '#lib/client/utils/money';
 	import { resolve } from '$app/paths';
 	import PhotoPlaceholder from './PhotoPlaceholder.svelte';
+	import WishlistHeart from './WishlistHeart.svelte';
 
 	let { product, compact = false }: { product: ProductCardData; compact?: boolean } = $props();
 
@@ -47,6 +48,12 @@
 				Épuisé
 			</span>
 		{/if}
+
+		<span
+			class="absolute top-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full border-[1.5px] border-ink bg-paper lg:top-3.5 lg:right-3.5"
+		>
+			<WishlistHeart productId={product.id} productName={product.name} />
+		</span>
 	</div>
 
 	<div

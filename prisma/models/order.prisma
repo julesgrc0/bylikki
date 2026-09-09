@@ -41,6 +41,9 @@ model Order {
 
   items OrderItem[]
 
+  /// Rappel d'avis envoye une seule fois, quelques jours apres la livraison
+  reviewReminderSentAt DateTime?
+
   paidAt      DateTime?
   shippedAt   DateTime?
   deliveredAt DateTime?

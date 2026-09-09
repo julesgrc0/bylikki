@@ -1,0 +1,16 @@
+/// Numero de newsletter redige depuis l'administration. L'envoi est trace pour
+/// qu'un second declenchement ne reexpedie pas le meme message.
+model NewsletterIssue {
+  id String @id @default(uuid(7))
+
+  subject String
+  body    String
+
+  sentAt         DateTime?
+  recipientCount Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sentAt])
+}

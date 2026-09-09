@@ -1,6 +1,7 @@
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { safeEqual } from '#lib/server/security/hash';
 import { runRetentionPurge } from '#lib/server/utils/retention';
+import { sendReviewReminders } from '#lib/server/utils/review-reminder';
 import { env } from '$env/dynamic/private';
 
 /**
@@ -14,7 +15,7 @@ import { env } from '$env/dynamic/private';
  * l'en-tete `Authorization` a partir de `CRON_SECRET` ; le POST est la pour
  * un declenchement manuel.
  */
-const purge: RequestHandler = async ({ request }) => {
+const purge: RequestHandler = async ({ request, url }) => {
 	const expected = env.CRON_SECRET;
 
 	if (!expected) {
@@ -27,7 +28,11 @@ const purge: RequestHandler = async ({ request }) => {
 		error(401, 'Jeton invalide.');
 	}
 
-	return json(await runRetentionPurge());
+	const purged = await runRetentionPurge();
+	/** La meme tache porte les rappels d'avis : un seul cron a surveiller. */
+	const reviewReminders = await sendReviewReminders(env.PUBLIC_ORIGIN ?? url.origin);
+
+	return json({ ...purged, rappelsAvis: reviewReminders });
 };
 
 export const GET = purge;

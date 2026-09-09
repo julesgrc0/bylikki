@@ -5,6 +5,7 @@
 	import DangerZone from '#lib/client/ui/DangerZone.svelte';
 	import EmptyState from '#lib/client/ui/EmptyState.svelte';
 	import OrderCard from '#lib/client/ui/OrderCard.svelte';
+	import ProductGrid from '#lib/client/ui/ProductGrid.svelte';
 	import SessionList from '#lib/client/ui/SessionList.svelte';
 	import { constrainsOf } from '#lib/client/validation/constrains';
 	import { profileSchema } from '#lib/client/validation/profile';
@@ -17,9 +18,32 @@
 		updateConsent,
 		updateProfile
 	} from '#lib/remote/user.remote';
+	import { getWishlist } from '#lib/remote/wishlist.remote';
 	import { resolve } from '$app/paths';
 
 	let { data } = $props();
+
+	type WishlistProduct = Awaited<ReturnType<typeof getWishlist>>[number]['product'];
+
+	/** La liste d'envies reutilise la carte produit : meme forme de donnees. */
+	function toCardData(product: WishlistProduct) {
+		const prices = product.variants.map((variant) => variant.priceCents);
+
+		return {
+			id: product.id,
+			slug: product.slug,
+			name: product.name,
+			summary: product.summary,
+			badge: product.badge,
+			priceFromCents: prices.length > 0 ? Math.min(...prices) : product.basePriceCents,
+			priceToCents: prices.length > 0 ? Math.max(...prices) : product.basePriceCents,
+			currency: product.currency,
+			ratingAverage: product.ratingAverage,
+			reviewCount: product.reviewCount,
+			image: product.images[0] ?? null,
+			inStock: product.variants.some((variant) => variant.stock > 0)
+		};
+	}
 
 	/** Les trois requetes partent ensemble plutot qu'en cascade. */
 	const [profile, orders, sessions] = await Promise.all([
@@ -47,7 +71,11 @@
 		}
 	];
 
-	let tab = $state<'achats' | 'params'>('achats');
+	type ProfileTab = 'achats' | 'envies' | 'params';
+
+	/** L'URL choisit l'onglet a l'arrivee, le clic prend le relais ensuite. */
+	let chosenTab = $state<ProfileTab | null>(null);
+	const tab = $derived(chosenTab ?? (data.tab === 'envies' ? 'envies' : 'achats'));
 	let exportNotice = $state('');
 
 	async function download() {
@@ -83,9 +111,9 @@
 
 	<div class="flex flex-wrap items-center gap-2.5 self-start">
 		<div class="flex gap-2.5 rounded-[40px] border-2 border-ink bg-paper p-1.5">
-			{#each [{ id: 'achats', label: 'Mes achats' }, { id: 'params', label: 'Paramètres' }] as const as entry (entry.id)}
+			{#each [{ id: 'achats', label: 'Mes achats' }, { id: 'envies', label: 'Mes envies' }, { id: 'params', label: 'Paramètres' }] as const as entry (entry.id)}
 				<button
-					onclick={() => (tab = entry.id)}
+					onclick={() => (chosenTab = entry.id)}
 					class="cursor-pointer rounded-[40px] px-5 py-3 text-[15px] font-semibold transition-colors lg:px-[26px] {tab ===
 					entry.id
 						? 'bg-pink text-white'
@@ -120,7 +148,29 @@
 	</p>
 {/if}
 
-{#if tab === 'achats'}
+{#if tab === 'envies'}
+	<div class="flex flex-col gap-5 px-5 pt-4 pb-16 lg:px-[70px] lg:pb-20">
+		{#await getWishlist()}
+			<span class="text-[15px] text-ink/60">Chargement de tes envies…</span>
+		{:then saved}
+			{#if saved.length === 0}
+				<EmptyState
+					title="rien de mis de côté pour l’instant ✦"
+					description="Touche le ♡ sur une pièce pour la retrouver ici, d’un appareil à l’autre."
+				>
+					<a
+						href={resolve('/search')}
+						class="rounded-[40px] bg-ink px-6 py-3 text-[15px] text-cream"
+					>
+						Parcourir la boutique →
+					</a>
+				</EmptyState>
+			{:else}
+				<ProductGrid products={saved.map((item) => toCardData(item.product))} />
+			{/if}
+		{/await}
+	</div>
+{:else if tab === 'achats'}
 	<div class="flex flex-col gap-5 px-5 pt-4 pb-16 lg:gap-[26px] lg:px-[70px] lg:pb-20">
 		{#if orders.length === 0}
 			<EmptyState

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cart, ui } from '#lib/client/state/shop.svelte';
+	import { cart, ui, wishlist } from '#lib/client/state/shop.svelte';
 	import { resolve } from '$app/paths';
 	import Logo from './Logo.svelte';
 	import TornEdge from './TornEdge.svelte';
@@ -42,11 +42,18 @@
 				⌕ <span class="hidden text-[14px] lg:inline">Recherche</span>
 			</button>
 			<a
-				href={signedIn ? resolve('/profile') : resolve('/sign')}
-				class="hidden text-ink sm:inline"
-				aria-label={signedIn ? 'Mon espace' : 'Se connecter'}
+				href={signedIn ? resolve('/profile?onglet=envies') : resolve('/sign')}
+				class="relative hidden text-ink sm:inline"
+				aria-label="Mes envies"
 			>
-				{signedIn ? '♥' : '♡'}
+				{wishlist.count > 0 ? '♥' : '♡'}
+				{#if wishlist.count > 0}
+					<span
+						class="absolute -top-1.5 -right-2 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-pink px-1 text-[10px] font-bold text-white"
+					>
+						{wishlist.count}
+					</span>
+				{/if}
 			</a>
 			<button
 				onclick={() => ui.toggleCart()}

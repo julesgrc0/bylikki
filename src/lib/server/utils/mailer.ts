@@ -78,7 +78,7 @@ export async function sendMailQuietly(message: MailMessage) {
  * les clients de messagerie savent lire de facon fiable. La version texte est
  * derivee du meme rendu, pour ne jamais avoir deux contenus a maintenir.
  */
-function renderEmail<Props extends Record<string, unknown>>(
+export function renderEmail<Props extends Record<string, unknown>>(
 	component: Component<Props>,
 	props: Props
 ) {

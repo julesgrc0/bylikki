@@ -175,6 +175,68 @@ class StrandStore {
 	}
 }
 
+const WISHLIST_KEY = 'bylikki:wishlist:v1';
+
+function readStoredWishlist(): string[] {
+	if (!browser) {
+		return [];
+	}
+
+	try {
+		const raw = window.localStorage.getItem(WISHLIST_KEY);
+
+		return raw ? (JSON.parse(raw) as string[]) : [];
+	} catch {
+		return [];
+	}
+}
+
+/**
+ * Les envies vivent d'abord dans le navigateur : poser un coeur ne doit pas
+ * imposer de creer un compte. A la connexion, la liste locale rejoint le
+ * compte puis le serveur redevient la source de verite.
+ */
+class WishlistStore {
+	ids = $state<string[]>(readStoredWishlist());
+
+	count = $derived(this.ids.length);
+
+	has(productId: string) {
+		return this.ids.includes(productId);
+	}
+
+	private persist() {
+		if (!browser) {
+			return;
+		}
+
+		try {
+			window.localStorage.setItem(WISHLIST_KEY, JSON.stringify(this.ids));
+		} catch {
+			// Stockage indisponible : la liste reste en memoire pour la visite.
+		}
+	}
+
+	toggleLocal(productId: string) {
+		this.ids = this.has(productId)
+			? this.ids.filter((id) => id !== productId)
+			: [...this.ids, productId];
+
+		this.persist();
+	}
+
+	/** Remplace la liste locale par celle du compte, une fois connectee. */
+	adopt(ids: string[]) {
+		this.ids = [...ids];
+		this.persist();
+	}
+
+	pending() {
+		return readStoredWishlist();
+	}
+}
+
 export const cart = new CartStore();
 export const ui = new UiStore();
 export const strand = new StrandStore();
+export const wishlist = new WishlistStore();

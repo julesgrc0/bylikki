@@ -160,8 +160,27 @@ export function setProductStatus(productId: string, status: ProductStatus) {
 	});
 }
 
+/**
+ * Un reassort, c'est le passage d'indisponible a disponible : stock epuise ou
+ * variante retiree de la vente, puis stock positif et variante remise en ligne.
+ * Une variante qui n'existait pas encore compte comme indisponible.
+ */
+export function isBackInStock(
+	previous: { stock: number; available: boolean } | null,
+	next: { stock: number; available: boolean }
+) {
+	const wasUnavailable = !previous || previous.stock <= 0 || !previous.available;
+
+	return wasUnavailable && next.stock > 0 && next.available;
+}
+
 export async function saveVariant(productId: string, input: ProductVariantInput) {
 	const attributeIds = await resolveAttributeValueIds(input.attributes);
+	/** Etat avant ecriture : c'est le passage de zero a positif qui declenche les alertes. */
+	const previous = await prisma.productVariant.findUnique({
+		where: { sku: input.sku },
+		select: { id: true, stock: true, available: true }
+	});
 	const attributeValues = input.attributes.map((attribute) => ({
 		attributeValueId: attributeIds.get(`${attribute.attributeKey}:${attribute.value}`)!
 	}));
@@ -195,7 +214,10 @@ export async function saveVariant(productId: string, input: ProductVariantInput)
 		data: attributeValues.map((entry) => ({ ...entry, variantId: variant.id }))
 	});
 
-	return variant;
+	return {
+		...variant,
+		restocked: isBackInStock(previous, { stock: input.stock, available: input.available })
+	};
 }
 
 export function deleteVariant(variantId: string) {

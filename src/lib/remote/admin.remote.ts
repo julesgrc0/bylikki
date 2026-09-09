@@ -40,6 +40,7 @@ import {
 	buildShippingMail,
 	sendMailQuietly
 } from '#lib/server/utils/mailer';
+import { notifyRestock } from '#lib/server/utils/notifications';
 import { runRetentionPurge } from '#lib/server/utils/retention';
 import {
 	adminOrderFiltersSchema,
@@ -156,9 +157,15 @@ export const upsertVariant = command(variantUpsertSchema, async ({ productId, va
 	requireAdmin();
 
 	const saved = await saveVariant(productId, variant);
+
+	/** Un reassort previent les personnes qui l'attendaient, une seule fois. */
+	const notified = saved.restocked
+		? await notifyRestock(saved.id, getRequestEvent().url.origin)
+		: 0;
+
 	await getAdminProduct(productId).refresh();
 
-	return saved;
+	return { ...saved, notified };
 });
 
 export const deleteVariant = command(

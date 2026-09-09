@@ -6,10 +6,12 @@
 	import PhotoPlaceholder from '#lib/client/ui/PhotoPlaceholder.svelte';
 	import ProductGrid from '#lib/client/ui/ProductGrid.svelte';
 	import RatingStars from '#lib/client/ui/RatingStars.svelte';
+	import RestockButton from '#lib/client/ui/RestockButton.svelte';
 	import ReviewForm from '#lib/client/ui/ReviewForm.svelte';
 	import ReviewList from '#lib/client/ui/ReviewList.svelte';
 	import SeoHead from '#lib/client/ui/SeoHead.svelte';
 	import VariantPicker from '#lib/client/ui/VariantPicker.svelte';
+	import WishlistHeart from '#lib/client/ui/WishlistHeart.svelte';
 	import { formatPrice } from '#lib/client/utils/money';
 	import { getProduct } from '#lib/remote/product.remote';
 	import { getProductReviews } from '#lib/remote/review.remote';
@@ -159,9 +161,16 @@
 				{#if product.handmade}
 					<span class="font-hand text-[22px] text-pink">pièce faite main ✦</span>
 				{/if}
-				<h1 class="mt-1 mb-0 text-[32px] leading-[1.02] font-semibold lg:text-[44px]">
-					{product.name}
-				</h1>
+				<div class="mt-1 flex items-start justify-between gap-4">
+					<h1 class="m-0 text-[32px] leading-[1.02] font-semibold lg:text-[44px]">
+						{product.name}
+					</h1>
+					<span
+						class="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper"
+					>
+						<WishlistHeart productId={product.id} productName={product.name} class="text-[22px]" />
+					</span>
+				</div>
 				<div class="mt-3 flex flex-wrap items-center gap-3.5">
 					<span class="text-[26px] lg:text-[28px]">{formatPrice(unitPriceCents)}</span>
 					{#if product.badge}
@@ -254,6 +263,10 @@
 
 			{#if addError}
 				<span class="text-[13.5px] font-semibold text-pink-deep">{addError}</span>
+			{/if}
+
+			{#if variant && variant.stock <= 0}
+				<RestockButton variantId={variant.id} />
 			{/if}
 
 			{#if product.attributeValues.length > 0}

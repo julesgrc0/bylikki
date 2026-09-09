@@ -200,47 +200,60 @@ export async function purgeUserAccount(userId: string) {
 
 /** Portabilite : tout ce que le compte contient, dans un objet serialisable. */
 export async function collectUserData(userId: string) {
-	const [user, addresses, consents, orders, reviews, sessions] = await Promise.all([
-		findUserById(userId),
-		listAddresses(userId),
-		listConsents(userId),
-		prisma.order.findMany({
-			where: { userId },
-			orderBy: { createdAt: 'desc' },
-			select: {
-				reference: true,
-				status: true,
-				paymentStatus: true,
-				totalCents: true,
-				currency: true,
-				createdAt: true,
-				items: {
-					select: {
-						productName: true,
-						variantLabel: true,
-						quantity: true,
-						unitPriceCents: true,
-						customization: true
+	const [user, addresses, consents, orders, reviews, sessions, wishlist, restockAlerts] =
+		await Promise.all([
+			findUserById(userId),
+			listAddresses(userId),
+			listConsents(userId),
+			prisma.order.findMany({
+				where: { userId },
+				orderBy: { createdAt: 'desc' },
+				select: {
+					reference: true,
+					status: true,
+					paymentStatus: true,
+					totalCents: true,
+					currency: true,
+					createdAt: true,
+					items: {
+						select: {
+							productName: true,
+							variantLabel: true,
+							quantity: true,
+							unitPriceCents: true,
+							customization: true
+						}
 					}
 				}
-			}
-		}),
-		prisma.review.findMany({
-			where: { userId },
-			select: {
-				rating: true,
-				title: true,
-				body: true,
-				status: true,
-				createdAt: true,
-				product: { select: { name: true, slug: true } }
-			}
-		}),
-		prisma.session.findMany({
-			where: { userId, active: true },
-			select: { createdAt: true, lastSeenAt: true, userAgentLabel: true }
-		})
-	]);
+			}),
+			prisma.review.findMany({
+				where: { userId },
+				select: {
+					rating: true,
+					title: true,
+					body: true,
+					status: true,
+					createdAt: true,
+					product: { select: { name: true, slug: true } }
+				}
+			}),
+			prisma.session.findMany({
+				where: { userId, active: true },
+				select: { createdAt: true, lastSeenAt: true, userAgentLabel: true }
+			}),
+			prisma.wishlistItem.findMany({
+				where: { userId },
+				select: { createdAt: true, product: { select: { name: true, slug: true } } }
+			}),
+			prisma.restockAlert.findMany({
+				where: { userId },
+				select: {
+					createdAt: true,
+					notifiedAt: true,
+					variant: { select: { label: true, product: { select: { name: true, slug: true } } } }
+				}
+			})
+		]);
 
 	return {
 		exportedAt: new Date().toISOString(),
@@ -249,6 +262,8 @@ export async function collectUserData(userId: string) {
 		consents,
 		orders,
 		reviews,
-		sessions
+		sessions,
+		wishlist,
+		restockAlerts
 	};
 }
