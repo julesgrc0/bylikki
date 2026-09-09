@@ -1,4 +1,5 @@
-import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
+import type { RequestEvent } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 
@@ -22,6 +23,11 @@ export function sha256Hex(input: string) {
 	return createHash('sha256').update(input, 'utf8').digest('hex');
 }
 
+/** Empreinte authentifiee : sans la cle, une valeur ne peut pas etre forgee. */
+export function hmacHex(scope: string, input: string) {
+	return createHmac('sha256', readSecret('AUTH_SECRET')).update(`${scope}:${input}`).digest('hex');
+}
+
 /** Jeton opaque cryptographiquement sur, dont seule l'empreinte est stockee. */
 export function generateSecretToken(byteLength = 32) {
 	return randomBytes(byteLength).toString('base64url');
@@ -39,7 +45,7 @@ export function generateNumericCode(length: number) {
 }
 
 export function hashSessionToken(token: string) {
-	return sha256Hex(`${readSecret('AUTH_SECRET')}:session:${token}`);
+	return hmacHex('session', token);
 }
 
 export function hashOtpCode(email: string, code: string) {
@@ -47,15 +53,16 @@ export function hashOtpCode(email: string, code: string) {
 }
 
 /**
- * Les adresses IP ne sont jamais stockees en clair : seule une empreinte salee
- * est conservee, suffisante pour la limitation de debit et la detection d'abus.
+ * Adresse de la cliente telle que l'adaptateur la resout. On ne lit jamais
+ * `x-forwarded-for` directement : l'en-tete est fourni par le client et
+ * permettrait de contourner toute limitation de debit en le faisant varier.
  */
-export function hashIpAddress(ipAddress: string | null) {
-	if (!ipAddress) {
+export function hashClientAddress(event: RequestEvent) {
+	try {
+		return hmacHex('ip', event.getClientAddress());
+	} catch {
 		return null;
 	}
-
-	return sha256Hex(`${readSecret('AUTH_SECRET')}:ip:${ipAddress}`);
 }
 
 /** Comparaison a temps constant, pour ne pas fuiter d'information par la duree. */

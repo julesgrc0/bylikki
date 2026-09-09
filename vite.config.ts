@@ -29,6 +29,26 @@ export default defineConfig({
 				experimental: { async: true }
 			},
 			adapter: adapter({ runtime: 'nodejs22.x' }),
+			/**
+			 * SvelteKit pose un nonce sur ses propres scripts. Les styles restent
+			 * en `unsafe-inline` : la maquette s'appuie massivement sur l'attribut
+			 * `style`, que la CSP ne sait pas distinguer d'un style injecte.
+			 */
+			csp: {
+				mode: 'auto',
+				directives: {
+					'default-src': ['self'],
+					'script-src': ['self'],
+					'style-src': ['self', 'unsafe-inline', 'https://fonts.googleapis.com'],
+					'font-src': ['self', 'data:', 'https://fonts.gstatic.com'],
+					'img-src': ['self', 'data:', 'https://*.public.blob.vercel-storage.com'],
+					'connect-src': ['self'],
+					'form-action': ['self'],
+					'frame-ancestors': ['none'],
+					'base-uri': ['self'],
+					'object-src': ['none']
+				}
+			},
 			experimental: {
 				remoteFunctions: true,
 				forkPreloads: true,

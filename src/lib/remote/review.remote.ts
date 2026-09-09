@@ -13,6 +13,7 @@ import {
 	saveReview
 } from '#lib/server/database/review';
 import { getSessionUser, requireUser } from '#lib/server/security/guard';
+import { consumeRateLimit } from '#lib/server/security/rate-limit';
 import { deleteImage, isBlobConfigured, uploadImage } from '#lib/server/utils/blob';
 import * as v from 'valibot';
 import { command, form, query } from '$app/server';
@@ -47,6 +48,13 @@ export const getProductReviews = query(slugSchema, async (slug) => {
  */
 export const submitReview = form(reviewFormSchema, async (input, issue) => {
 	const user = requireUser();
+
+	const quota = await consumeRateLimit({ bucket: 'review-submit', subject: user.id, limit: 10 });
+
+	if (!quota.allowed) {
+		invalid(issue.body('Tu as déposé beaucoup d’avis d’un coup : reviens dans une heure.'));
+	}
+
 	const product = await findProductIdBySlug(input.productSlug);
 
 	if (!product) {

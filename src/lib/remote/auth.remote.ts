@@ -1,12 +1,14 @@
 import { error, invalid, redirect } from '@sveltejs/kit';
 import { otpSchema, signInSchema } from '#lib/client/validation/auth';
 import { getSessionUser } from '#lib/server/security/guard';
+import { hashClientAddress } from '#lib/server/security/hash';
 import {
 	clearPendingEmail,
 	readPendingEmail,
 	sendOtpCode,
 	verifyOtpCode
 } from '#lib/server/security/otp';
+import { consumeRateLimit } from '#lib/server/security/rate-limit';
 import { endSession } from '#lib/server/security/session';
 import { command, form, getRequestEvent } from '$app/server';
 
@@ -25,6 +27,10 @@ export const requestOtp = form(signInSchema, async ({ email }, issue) => {
 		);
 	}
 
+	if (result.status === 'undeliverable') {
+		invalid(issue.email('Ce domaine ne reçoit pas de courrier : vérifie l’adresse.'));
+	}
+
 	redirect(303, '/sign/otp');
 });
 
@@ -34,6 +40,17 @@ export const verifyOtp = form(otpSchema, async ({ code }, issue) => {
 
 	if (!email) {
 		redirect(303, '/sign');
+	}
+
+	/** Sans plafond par appareil, le code a six chiffres serait attaquable en volume. */
+	const attempts = await consumeRateLimit({
+		bucket: 'otp-verify',
+		subject: hashClientAddress(event),
+		limit: 30
+	});
+
+	if (!attempts.allowed) {
+		invalid(issue.code('Trop de tentatives depuis cet appareil. Reviens dans une heure.'));
 	}
 
 	const result = await verifyOtpCode(event, email, code);
@@ -74,6 +91,10 @@ export const resendOtp = command(async () => {
 			sent: false,
 			message: `Patiente encore ${result.retryAfterSeconds} secondes avant un nouvel envoi.`
 		};
+	}
+
+	if (result.status === 'undeliverable') {
+		return { sent: false, message: 'Ce domaine ne reçoit pas de courrier : vérifie l’adresse.' };
 	}
 
 	return { sent: true, message: 'Un nouveau code vient de partir.' };

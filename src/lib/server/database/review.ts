@@ -9,7 +9,6 @@ const reviewSelect = {
 	verifiedPurchase: true,
 	createdAt: true,
 	publishedAt: true,
-	userId: true,
 	photos: {
 		select: { id: true, url: true, width: true, height: true },
 		orderBy: { position: 'asc' }

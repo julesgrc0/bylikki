@@ -124,23 +124,63 @@ qu'après avoir tranché la question du consentement.
 
 ## 6. Sécurité
 
-- **Pas de CSP.** `hooks.server.ts` pose `X-Content-Type-Options`, `Referrer-Policy` et
-  `Permissions-Policy`. Il manque `Content-Security-Policy` et `Strict-Transport-Security`.
-  SvelteKit sait générer la CSP avec nonces via `kit.csp` dans la configuration.
-- **Limitation de débit partielle** : seul l'envoi d'OTP est limité (60 s entre deux envois,
-  5/heure par e-mail, 20/heure par IP hachée). La vérification du code, la création d'avis, le
-  checkout et les fonctions d'administration n'ont aucune limite.
-- **Validation des adresses e-mail** : la syntaxe seule est vérifiée. Un domaine inexistant est
-  accepté et génère un envoi voué à l'échec (et du bruit chez le fournisseur SMTP).
-- **Contraintes navigateur** : les formulaires valident côté serveur et en préflight, mais les
-  champs ne portent pas les attributs HTML (`required`, `minlength`, `pattern`) qui donnent le
-  retour immédiat et gratuit du navigateur.
-- **Purge de conservation** : `runRetentionPurge()` existe et n'est déclenchée par aucune tâche
-  planifiée. Sans elle, les comptes dont la suppression a été demandée ne sont jamais effacés —
-  ce qui contredit la promesse faite dans l'interface. À brancher sur un cron.
-- **Sauvegardes et supervision** : à mettre en place (sauvegarde de la base, alerte sur erreurs).
+Un audit complet a été mené sur l'authentification, les fonctions distantes, l'accès aux données
+et les en-têtes. Cinq failles ont été trouvées et corrigées, le reste est listé comme travail
+d'exploitation restant.
 
-> Un audit de sécurité détaillé est en cours et complétera cette section.
+### Failles corrigées
+
+1. **Signature falsifiable du cookie d'e-mail en attente.** Entre `/sign` et `/sign/otp`,
+   l'adresse était accompagnée d'un SHA-256 non clé : n'importe qui pouvait fabriquer le couple
+   et faire vérifier un code pour une autre adresse. La signature passe en HMAC-SHA-256 clé par
+   `AUTH_SECRET` (`hmacHex('pending-email', email)` dans `src/lib/server/security/hash.ts`).
+2. **Contournement de la limitation de débit par `x-forwarded-for`.** L'en-tête, fourni par le
+   client, servait à identifier l'IP. Toutes les empreintes passent désormais par
+   `event.getClientAddress()`, seule source contrôlée par l'adaptateur.
+3. **Fuite de l'identifiant d'auteur dans les avis publics.** La requête publique retournait le
+   `userId` de chaque personne ayant laissé un avis : le champ a été retiré du `select`.
+4. **Absence de CSP et de HSTS.** La CSP est générée par SvelteKit avec nonces (`kit.csp` dans
+   `vite.config.ts`, `default-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`, images
+   limitées au domaine et au Blob Vercel). `Strict-Transport-Security` est posé hors développement,
+   aux côtés de `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` et
+   `Cross-Origin-Opener-Policy`.
+5. **Limitation de débit absente hors envoi d'OTP.** Un limiteur générique adossé à la base
+   (modèle `RateLimit`, fenêtre fixe, `consumeRateLimit()`) couvre maintenant la vérification du
+   code (30/h par IP hachée), le dépôt d'avis (10/h par compte) et le checkout (20/h par compte).
+   Les compteurs survivent au redémarrage et au passage d'une instance à l'autre, ce qu'un
+   compteur en mémoire ne ferait pas en serverless. `runRetentionPurge()` purge les fenêtres
+   passées.
+
+### Renforcements ajoutés
+
+- **Validation du serveur de messagerie.** `normalizeEmail()` (trim, minuscules, NFKC) puis
+  `hasValidMx()` (enregistrements MX, repli A/AAAA, délai borné, permissif si le résolveur
+  échoue) dans `src/lib/server/utils/email.ts`. Un domaine inexistant est refusé avant tout envoi :
+  plus de bruit chez le fournisseur SMTP ni d'énumération par temps de réponse.
+- **Contraintes navigateur dérivées des schémas.** `constrains()` traduit un schéma Valibot en
+  attributs HTML (`required`, `minlength`, `maxlength`, `pattern`, `min`, `max`). Le navigateur
+  rend le même verdict que le serveur, immédiatement et sans réseau. Appliqué à la connexion, au
+  carnet d'adresses, au profil et au formulaire d'avis. La validation serveur reste la seule qui
+  fasse autorité.
+
+### Vérifié sans défaut
+
+- Aucune requête SQL brute, aucun `{@html}` : pas de surface d'injection SQL ni XSS stockée.
+- Chaque fonction distante mutante commence par `requireUser()` ou `requireAdmin()` ; les lectures
+  de données personnelles filtrent systématiquement sur l'identifiant de session.
+- SvelteKit refuse les `POST` de fonctions distantes venant d'une autre origine : le CSRF est
+  couvert par le framework, en plus des cookies `SameSite=Lax`, `HttpOnly` et `Secure`.
+- Les jetons de session ne sont jamais stockés en clair : seule l'empreinte HMAC est en base.
+- Aucun secret n'est exposé au client (`$env/static/private` uniquement côté serveur).
+
+### Reste à faire côté exploitation
+
+- **Appliquer le schéma** : le modèle `RateLimit` est nouveau, `bun db:push` est nécessaire avant
+  le déploiement.
+- **Planifier `runRetentionPurge()`** : la fonction existe mais aucun cron ne l'appelle. Sans elle,
+  les comptes dont la suppression a été demandée ne sont jamais effacés — ce qui contredit la
+  promesse faite dans l'interface.
+- **Sauvegardes et supervision** : sauvegarde de la base, alerte sur erreurs, rotation d'`AUTH_SECRET`.
 
 ---
 
@@ -159,7 +199,7 @@ qu'après avoir tranché la question du consentement.
 ## 8. Ordre conseillé
 
 1. Migrations Prisma, secrets de production, police manquante, mentions légales.
-2. Sécurité : CSP, limitation de débit élargie, validation des domaines e-mail, cron de purge.
+2. Sécurité : `db:push` du modèle `RateLimit`, cron de purge, sauvegardes et supervision.
 3. E-mails transactionnels et factures.
 4. SEO : sitemap, Open Graph, JSON-LD, canoniques.
 5. Contenu réel (photos, logo) et tests sur les chemins critiques.

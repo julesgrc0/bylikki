@@ -1,5 +1,6 @@
 import { purgeExpiredCredentials } from '../database/auth';
 import { listAccountsToPurge, purgeUserAccount } from '../database/user';
+import { purgeExpiredRateLimits } from '../security/rate-limit';
 import { deleteImage } from './blob';
 
 /** Delai d'annulation annonce a la personne avant l'effacement definitif. */
@@ -12,6 +13,7 @@ export const DELETION_GRACE_DAYS = 30;
  */
 export async function runRetentionPurge(now = new Date()) {
 	const [otps, sessions] = await purgeExpiredCredentials(now);
+	const rateLimits = await purgeExpiredRateLimits(now);
 
 	const deadline = new Date(now.getTime() - DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
 	const accounts = await listAccountsToPurge(deadline);
@@ -24,6 +26,7 @@ export async function runRetentionPurge(now = new Date()) {
 	return {
 		otpsSupprimes: otps.count,
 		sessionsSupprimees: sessions.count,
-		comptesEffaces: accounts.length
+		comptesEffaces: accounts.length,
+		compteursPurges: rateLimits.count
 	};
 }

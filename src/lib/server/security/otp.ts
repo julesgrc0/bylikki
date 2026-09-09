@@ -8,8 +8,9 @@ import {
 	invalidatePendingOtps
 } from '../database/auth';
 import { createVerifiedUser, findUserByEmail, markUserSignedIn } from '../database/user';
+import { hasValidMx, normalizeEmail } from '../utils/email';
 import { buildOtpMail, sendMail } from '../utils/mailer';
-import { generateNumericCode, hashIpAddress, hashOtpCode, safeEqual, sha256Hex } from './hash';
+import { generateNumericCode, hashClientAddress, hashOtpCode, hmacHex, safeEqual } from './hash';
 import { checkOtpRateLimit } from './rate-limit';
 import { startSession } from './session';
 
@@ -19,8 +20,13 @@ const OTP_MAX_ATTEMPTS = 5;
 const PENDING_EMAIL_COOKIE = 'bylikki_otp_email';
 const PENDING_EMAIL_TTL_SECONDS = OTP_TTL_MINUTES * 60;
 
+/**
+ * Signature authentifiee du cookie : une empreinte simple serait recalculable
+ * par n'importe qui, et permettrait de designer une adresse arbitraire comme
+ * « en attente de code ».
+ */
 function signPendingEmail(email: string) {
-	return sha256Hex(`pending-email:${email}`).slice(0, 32);
+	return hmacHex('pending-email', email);
 }
 
 /**
@@ -61,14 +67,29 @@ export function clearPendingEmail(cookies: Cookies) {
 }
 
 export type OtpRequestResult =
-	{ status: 'sent' } | { status: 'rate-limited'; retryAfterSeconds: number };
+	| { status: 'sent' }
+	| { status: 'rate-limited'; retryAfterSeconds: number }
+	| { status: 'undeliverable' };
 
-export async function sendOtpCode(event: RequestEvent, email: string): Promise<OtpRequestResult> {
-	const ipHash = hashIpAddress(event.request.headers.get('x-forwarded-for'));
+export async function sendOtpCode(
+	event: RequestEvent,
+	rawEmail: string
+): Promise<OtpRequestResult> {
+	const email = normalizeEmail(rawEmail);
+	const ipHash = hashClientAddress(event);
 	const verdict = await checkOtpRateLimit(email, ipHash);
 
 	if (!verdict.allowed) {
 		return { status: 'rate-limited', retryAfterSeconds: verdict.retryAfterSeconds };
+	}
+
+	/**
+	 * Un domaine qui ne recoit pas de courrier ne doit pas declencher d'envoi :
+	 * cela use la reputation du serveur SMTP et laisse la personne attendre un
+	 * code qui n'arrivera jamais.
+	 */
+	if (!(await hasValidMx(email))) {
+		return { status: 'undeliverable' };
 	}
 
 	const code = generateNumericCode(OTP_CODE_LENGTH);

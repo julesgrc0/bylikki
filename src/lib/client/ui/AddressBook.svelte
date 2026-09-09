@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { constrainsOf } from '#lib/client/validation/constrains';
 	import { addressSchema } from '#lib/client/validation/profile';
 	import { deleteAddress, upsertAddress, type getProfile } from '#lib/remote/user.remote';
 	import ChunkyButton from './ChunkyButton.svelte';
@@ -98,6 +99,7 @@
 					Nom du destinataire
 					<input
 						{...form.fields.fullName.as('text')}
+						{...constrainsOf(addressSchema, 'fullName')}
 						value={form.fields.fullName.value() ?? current?.fullName ?? ''}
 						class="rounded-[14px] border-[1.5px] border-ink/25 bg-paper px-4 py-3 text-[15px] font-normal outline-none focus:border-pink"
 					/>
@@ -106,6 +108,7 @@
 					Libellé (facultatif)
 					<input
 						{...form.fields.label.as('text')}
+						{...constrainsOf(addressSchema, 'label')}
 						value={form.fields.label.value() ?? current?.label ?? ''}
 						placeholder="Maison, bureau…"
 						class="rounded-[14px] border-[1.5px] border-ink/25 bg-paper px-4 py-3 text-[15px] font-normal outline-none focus:border-pink"
@@ -117,6 +120,7 @@
 				Adresse
 				<input
 					{...form.fields.line1.as('text')}
+					{...constrainsOf(addressSchema, 'line1')}
 					value={form.fields.line1.value() ?? current?.line1 ?? ''}
 					class="rounded-[14px] border-[1.5px] border-ink/25 bg-paper px-4 py-3 text-[15px] font-normal outline-none focus:border-pink"
 				/>
@@ -126,6 +130,7 @@
 				Complément (facultatif)
 				<input
 					{...form.fields.line2.as('text')}
+					{...constrainsOf(addressSchema, 'line2')}
 					value={form.fields.line2.value() ?? current?.line2 ?? ''}
 					class="rounded-[14px] border-[1.5px] border-ink/25 bg-paper px-4 py-3 text-[15px] font-normal outline-none focus:border-pink"
 				/>
@@ -136,6 +141,7 @@
 					Code postal
 					<input
 						{...form.fields.postalCode.as('text')}
+						{...constrainsOf(addressSchema, 'postalCode')}
 						value={form.fields.postalCode.value() ?? current?.postalCode ?? ''}
 						class="rounded-[14px] border-[1.5px] border-ink/25 bg-paper px-4 py-3 text-[15px] font-normal outline-none focus:border-pink"
 					/>
@@ -144,6 +150,7 @@
 					Ville
 					<input
 						{...form.fields.city.as('text')}
+						{...constrainsOf(addressSchema, 'city')}
 						value={form.fields.city.value() ?? current?.city ?? ''}
 						class="rounded-[14px] border-[1.5px] border-ink/25 bg-paper px-4 py-3 text-[15px] font-normal outline-none focus:border-pink"
 					/>

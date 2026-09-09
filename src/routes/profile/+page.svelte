@@ -6,6 +6,7 @@
 	import EmptyState from '#lib/client/ui/EmptyState.svelte';
 	import OrderCard from '#lib/client/ui/OrderCard.svelte';
 	import SessionList from '#lib/client/ui/SessionList.svelte';
+	import { constrainsOf } from '#lib/client/validation/constrains';
 	import { profileSchema } from '#lib/client/validation/profile';
 	import { signOut } from '#lib/remote/auth.remote';
 	import { getMyOrders } from '#lib/remote/order.remote';
@@ -170,6 +171,7 @@
 						Nom affiché (facultatif)
 						<input
 							{...identityForm.fields.displayName.as('text')}
+							{...constrainsOf(profileSchema, 'displayName')}
 							value={identityForm.fields.displayName.value() ?? profile.user.displayName ?? ''}
 							class="rounded-[16px] border-[1.5px] border-ink/20 bg-cream px-[18px] py-[15px] text-[15.5px] font-normal outline-none focus:border-pink"
 						/>
@@ -179,6 +181,7 @@
 						Téléphone (suivi de colis, facultatif)
 						<input
 							{...identityForm.fields.phone.as('tel')}
+							{...constrainsOf(profileSchema, 'phone')}
 							value={identityForm.fields.phone.value() ?? profile.user.phone ?? ''}
 							class="rounded-[16px] border-[1.5px] border-ink/20 bg-cream px-[18px] py-[15px] text-[15.5px] font-normal outline-none focus:border-pink"
 						/>

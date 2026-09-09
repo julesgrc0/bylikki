@@ -3,6 +3,7 @@
 	import Logo from '#lib/client/ui/Logo.svelte';
 	import Star from '#lib/client/ui/Star.svelte';
 	import { signInSchema } from '#lib/client/validation/auth';
+	import { constrainsOf } from '#lib/client/validation/constrains';
 	import { requestOtp } from '#lib/remote/auth.remote';
 	import { resolve } from '$app/paths';
 
@@ -72,6 +73,7 @@
 					<input
 						id="email"
 						{...form.fields.email.as('email')}
+						{...constrainsOf(signInSchema, 'email')}
 						autocomplete="email"
 						placeholder="emma@exemple.fr"
 						class="w-full rounded-[18px] border-2 border-ink bg-cream px-5 py-4 text-[17px] text-ink outline-none focus:border-pink"

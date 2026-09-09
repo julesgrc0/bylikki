@@ -50,3 +50,17 @@ model RevokedToken {
 
   @@index([expiresAt])
 }
+
+/// Compteur a fenetre fixe : la limitation doit survivre au redemarrage et
+/// etre partagee entre instances, ce qu'une carte en memoire ne permet pas.
+model RateLimit {
+  id String @id @default(uuid(7))
+
+  bucket      String
+  subject     String
+  windowStart DateTime
+  count       Int      @default(1)
+
+  @@unique([bucket, subject, windowStart])
+  @@index([windowStart])
+}

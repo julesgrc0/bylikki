@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { constrainsOf } from '#lib/client/validation/constrains';
 	import { imageAccept, MAX_REVIEW_PHOTOS } from '#lib/client/validation/media';
-	import { REVIEW_MAX_LENGTH } from '#lib/client/validation/review';
+	import { reviewSchema } from '#lib/client/validation/review';
 	import { submitReview } from '#lib/remote/review.remote';
 	import ChunkyButton from './ChunkyButton.svelte';
 
@@ -50,6 +51,7 @@
 		<input
 			id="review-author"
 			{...instance.fields.authorName.as('text')}
+			{...constrainsOf(reviewSchema, 'authorName')}
 			value={instance.fields.authorName.value() || defaultAuthorName}
 			placeholder="Emma"
 			class="rounded-[16px] border-[1.5px] border-ink/25 bg-cream px-4 py-3 text-[15px] outline-none focus:border-pink"
@@ -64,6 +66,7 @@
 		<input
 			id="review-title"
 			{...instance.fields.title.as('text')}
+			{...constrainsOf(reviewSchema, 'title')}
 			placeholder="Encore plus beau en vrai"
 			class="rounded-[16px] border-[1.5px] border-ink/25 bg-cream px-4 py-3 text-[15px] outline-none focus:border-pink"
 		/>
@@ -74,7 +77,7 @@
 		<textarea
 			id="review-body"
 			name={instance.fields.body.as('text').name}
-			maxlength={REVIEW_MAX_LENGTH}
+			{...constrainsOf(reviewSchema, 'body')}
 			rows="4"
 			placeholder="Ce que tu as aimé, ce que tu portes avec…"
 			class="rounded-[16px] border-[1.5px] border-ink/25 bg-cream px-4 py-3 text-[15px] outline-none focus:border-pink"

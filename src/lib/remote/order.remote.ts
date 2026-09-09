@@ -11,6 +11,7 @@ import {
 } from '#lib/server/database/order';
 import { findAddress } from '#lib/server/database/user';
 import { requireUser } from '#lib/server/security/guard';
+import { consumeRateLimit } from '#lib/server/security/rate-limit';
 import { createCheckoutSession, isStripeConfigured } from '#lib/server/utils/stripe';
 import { orderReferenceSchema } from '#lib/server/validation/order';
 import * as v from 'valibot';
@@ -56,6 +57,13 @@ export const getMyOrder = query(orderReferenceSchema, async (reference) => {
  */
 export const startCheckout = command(checkoutSchema, async ({ addressId, lines }) => {
 	const user = requireUser();
+
+	/** Chaque tentative cree une commande et une session Stripe : on borne. */
+	const quota = await consumeRateLimit({ bucket: 'checkout', subject: user.id, limit: 20 });
+
+	if (!quota.allowed) {
+		error(429, 'Trop de tentatives de paiement. Reviens dans une heure.');
+	}
 
 	if (!isStripeConfigured()) {
 		error(503, "Le paiement en ligne n'est pas disponible pour le moment.");

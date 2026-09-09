@@ -9,7 +9,7 @@ import {
 	touchSession,
 	type SessionRecord
 } from '../database/auth';
-import { generateSecretToken, hashIpAddress, hashSessionToken } from './hash';
+import { generateSecretToken, hashClientAddress, hashSessionToken } from './hash';
 
 export const SESSION_COOKIE = 'bylikki_session';
 
@@ -57,7 +57,7 @@ export async function startSession(event: RequestEvent, userId: string) {
 		userId,
 		secretHash: hashSessionToken(token),
 		expiresAt,
-		ipHash: hashIpAddress(event.request.headers.get('x-forwarded-for')),
+		ipHash: hashClientAddress(event),
 		userAgentLabel: toUserAgentLabel(event.request.headers.get('user-agent'))
 	});
 
