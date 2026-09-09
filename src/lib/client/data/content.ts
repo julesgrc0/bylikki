@@ -1,44 +1,5 @@
 import { resolve } from '$app/paths';
 
-export type Slide = {
-	kicker: string;
-	title: string;
-	desc: string;
-	cta: string;
-	href: string;
-};
-
-export const slides: Slide[] = [
-	{
-		kicker: 'Découvrir la boutique',
-		title: 'Les dernières créations',
-		desc: 'Bijoux et pièces cousues, en petites séries. Ce qui part ne revient pas toujours.',
-		cta: 'Visiter la boutique →',
-		href: resolve('/search?sort=nouveautes')
-	},
-	{
-		kicker: 'Personnalisation',
-		title: 'Personnalise ton bijou',
-		desc: 'Choisis tes perles, assemble-les, et repars avec une pièce que personne d’autre n’a.',
-		cta: 'Créer mon bijou →',
-		href: resolve('/search?query=personnalisable')
-	},
-	{
-		kicker: 'À la une',
-		title: 'La collection Étoiles',
-		desc: 'Six pièces autour d’un même motif : la petite étoile cousue ou enfilée à la main.',
-		cta: 'Découvrir →',
-		href: resolve('/search?query=etoile')
-	},
-	{
-		kicker: 'Upcycling',
-		title: 'Upcycling du moment',
-		desc: 'Un sac né d’un jean chiné et de trois chutes de tissu. Un seul exemplaire.',
-		cta: 'Découvrir la pièce →',
-		href: resolve('/search?category=upcycling')
-	}
-];
-
 export const reviewCardBg = ['#FFF4C2', '#D8F0FB', '#FFE9F2', '#DDF4E2', '#E9DFFF'];
 export const reviewCardRadius = [
 	'30px 70px 26px 60px',

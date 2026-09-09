@@ -10,6 +10,7 @@ import {
 	findUserOrder,
 	listUserOrders
 } from '#lib/server/database/order';
+import { getSetting } from '#lib/server/database/settings';
 import { findAddress } from '#lib/server/database/user';
 import { requireUser } from '#lib/server/security/guard';
 import { consumeRateLimit } from '#lib/server/security/rate-limit';
@@ -24,7 +25,7 @@ const cartSchema = v.pipe(v.array(cartLineSchema), v.maxLength(40));
 /** Panier revalide cote serveur : prix, stock et personnalisations. */
 export const getCartDetails = query(cartSchema, async (lines) => {
 	const cart = await priceCartLines(lines);
-	const shippingCents = computeShippingCents(cart.subtotalCents);
+	const shippingCents = await computeShippingCents(cart.subtotalCents);
 
 	return {
 		lines: cart.lines,
@@ -65,6 +66,13 @@ export const startCheckout = command(checkoutSchema, async ({ addressId, lines }
 
 	if (!quota.allowed) {
 		error(429, 'Trop de tentatives de paiement. Reviens dans une heure.');
+	}
+
+	/** Mode vacances : la boutique reste consultable, l'encaissement est suspendu. */
+	const vacation = await getSetting('vacation');
+
+	if (vacation.enabled) {
+		error(503, vacation.message);
 	}
 
 	if (!isStripeConfigured()) {

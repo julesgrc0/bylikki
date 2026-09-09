@@ -2,6 +2,7 @@
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import { ui } from '#lib/client/state/shop.svelte';
+	import AnnouncementBar from '#lib/client/ui/AnnouncementBar.svelte';
 	import CartDrawer from '#lib/client/ui/CartDrawer.svelte';
 	import MenuDrawer from '#lib/client/ui/MenuDrawer.svelte';
 	import PageError from '#lib/client/ui/PageError.svelte';
@@ -39,6 +40,7 @@
 <svelte:window onscroll={onScroll} onkeydown={onKeydown} />
 
 <div class="site-shell mx-auto flex min-h-screen max-w-[1440px] flex-col bg-cream">
+	<AnnouncementBar announcement={data.announcement} />
 	<TopBar {fuse} signedIn={data.signedIn} isAdmin={data.isAdmin} />
 	<MenuDrawer signedIn={data.signedIn} />
 	<CartDrawer signedIn={data.signedIn} />

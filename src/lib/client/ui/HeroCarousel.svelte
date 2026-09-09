@@ -1,15 +1,20 @@
 <script lang="ts">
-	import { slides } from '#lib/client/data/content';
 	import type { ProductCardData } from '#lib/client/types';
+	import { targetHref } from '#lib/client/utils/links';
+	import type { SiteSettings } from '#lib/client/validation/settings';
 	import { onMount } from 'svelte';
 	import ChunkyButton from './ChunkyButton.svelte';
 	import ProductCard from './ProductCard.svelte';
 	import Star from './Star.svelte';
 
-	let { products = [] }: { products?: ProductCardData[] } = $props();
+	let {
+		products = [],
+		slides
+	}: { products?: ProductCardData[]; slides: SiteSettings['home']['slides'] } = $props();
 
 	let index = $state(0);
 	const slide = $derived(slides[index]);
+	const slideHref = $derived(targetHref(slide.target));
 	const featured = $derived(products[index % Math.max(products.length, 1)]);
 
 	onMount(() => {
@@ -97,7 +102,9 @@
 		{/if}
 
 		<div class="flex flex-wrap items-center gap-4 lg:mt-1.5 lg:gap-[18px]">
-			<ChunkyButton href={slide.href} class="w-full lg:w-auto">{slide.cta}</ChunkyButton>
+			{#if slideHref}
+				<ChunkyButton href={slideHref} class="w-full lg:w-auto">{slide.cta}</ChunkyButton>
+			{/if}
 			<span class="hidden font-hand text-[21px] text-ink/60 lg:inline">fait main à Nantes ♡</span>
 		</div>
 

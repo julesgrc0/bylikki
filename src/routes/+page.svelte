@@ -12,6 +12,8 @@
 	import { page } from '$app/state';
 
 	/** Les deux requetes partent ensemble : la page part complete dans le HTML. */
+	let { data } = $props();
+
 	const [featured, reviews] = await Promise.all([getFeaturedProducts(), getLatestReviews()]);
 
 	const siteSchema = $derived([
@@ -45,7 +47,7 @@
 	structuredData={siteSchema}
 />
 
-<HeroCarousel products={featured} />
+<HeroCarousel products={featured} slides={data.home.slides} />
 
 <UniversesSection />
 

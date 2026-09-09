@@ -2,23 +2,37 @@ import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('./client', () => ({ prisma: {} }));
 
-const { computeShippingCents, FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FLAT_CENTS } =
+const { shippingCentsFor, FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FLAT_CENTS } =
 	await import('./order');
 
-describe('computeShippingCents', () => {
+const bareme = {
+	flatCents: SHIPPING_FLAT_CENTS,
+	freeThresholdCents: FREE_SHIPPING_THRESHOLD_CENTS
+};
+
+describe('shippingCentsFor', () => {
 	test('un panier vide paie le forfait', () => {
-		expect(computeShippingCents(0)).toBe(SHIPPING_FLAT_CENTS);
+		expect(shippingCentsFor(0, bareme)).toBe(SHIPPING_FLAT_CENTS);
 	});
 
 	test('sous le seuil, la livraison est facturee', () => {
-		expect(computeShippingCents(FREE_SHIPPING_THRESHOLD_CENTS - 1)).toBe(SHIPPING_FLAT_CENTS);
+		expect(shippingCentsFor(FREE_SHIPPING_THRESHOLD_CENTS - 1, bareme)).toBe(SHIPPING_FLAT_CENTS);
 	});
 
 	test('au seuil exact, la livraison est offerte', () => {
-		expect(computeShippingCents(FREE_SHIPPING_THRESHOLD_CENTS)).toBe(0);
+		expect(shippingCentsFor(FREE_SHIPPING_THRESHOLD_CENTS, bareme)).toBe(0);
 	});
 
 	test('au-dessus du seuil, la livraison reste offerte', () => {
-		expect(computeShippingCents(FREE_SHIPPING_THRESHOLD_CENTS + 5000)).toBe(0);
+		expect(shippingCentsFor(FREE_SHIPPING_THRESHOLD_CENTS + 5000, bareme)).toBe(0);
+	});
+
+	test('un bareme personnalise est respecte', () => {
+		expect(shippingCentsFor(4000, { flatCents: 790, freeThresholdCents: 9000 })).toBe(790);
+		expect(shippingCentsFor(9000, { flatCents: 790, freeThresholdCents: 9000 })).toBe(0);
+	});
+
+	test('un seuil a zero rend la livraison toujours offerte', () => {
+		expect(shippingCentsFor(0, { flatCents: 490, freeThresholdCents: 0 })).toBe(0);
 	});
 });

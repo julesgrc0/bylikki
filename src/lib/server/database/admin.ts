@@ -1,9 +1,9 @@
 import type { OrderStatus, ProductStatus, Role } from '$prisma/enums';
 import { normalizeText } from '../utils/text';
 import { prisma } from './client';
+import { getSetting } from './settings';
 
 export const ADMIN_PAGE_SIZE = 25;
-const LOW_STOCK_THRESHOLD = 3;
 const TREND_DAYS = 30;
 
 /** Fenetre glissante utilisee par les indicateurs et la courbe du tableau de bord. */
@@ -21,6 +21,7 @@ export type DashboardStats = Awaited<ReturnType<typeof getDashboardStats>>;
 
 export async function getDashboardStats(now = new Date()) {
 	const windowStart = startOfTrendWindow(now);
+	const { lowStock: lowStockThreshold } = await getSetting('thresholds');
 
 	const [revenue, ordersByStatus, recentOrders, productsByStatus, counters, lowStock] =
 		await Promise.all([
@@ -43,7 +44,7 @@ export async function getDashboardStats(now = new Date()) {
 				prisma.order.count({ where: { status: { in: ['PAID', 'PREPARING'] } } })
 			]),
 			prisma.productVariant.findMany({
-				where: { available: true, stock: { lte: LOW_STOCK_THRESHOLD } },
+				where: { available: true, stock: { lte: lowStockThreshold } },
 				orderBy: { stock: 'asc' },
 				take: 8,
 				select: {

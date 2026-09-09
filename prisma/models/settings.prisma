@@ -1,0 +1,9 @@
+/// Reglages de la boutique, modifiables depuis l'administration sans deploiement.
+/// Une ligne par rubrique, la valeur etant validee par un schema Valibot partage
+/// avec l'interface. Une cle absente retombe sur sa valeur par defaut.
+model SiteSetting {
+  key   String @id
+  value Json
+
+  updatedAt DateTime @updatedAt
+}

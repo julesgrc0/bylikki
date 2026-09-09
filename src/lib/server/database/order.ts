@@ -1,11 +1,14 @@
+import { settingDefaults } from '#lib/client/validation/settings';
 import type { Prisma } from '$prisma/client';
 import { generateOrderReference } from '../utils/reference';
 import { prisma } from './client';
+import { getSetting } from './settings';
 
 const INVOICE_COUNTER = 'invoice';
 
-export const SHIPPING_FLAT_CENTS = 490;
-export const FREE_SHIPPING_THRESHOLD_CENTS = 6000;
+/** Valeurs de repli : les montants reels viennent des reglages de la boutique. */
+export const SHIPPING_FLAT_CENTS = settingDefaults.shipping.flatCents;
+export const FREE_SHIPPING_THRESHOLD_CENTS = settingDefaults.shipping.freeThresholdCents;
 
 export type CheckoutLine = {
 	variantId: string;
@@ -64,8 +67,16 @@ const orderSelect = {
 
 export type OrderSummary = Awaited<ReturnType<typeof listUserOrders>>[number];
 
-export function computeShippingCents(subtotalCents: number) {
-	return subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : SHIPPING_FLAT_CENTS;
+/** Calcul pur, teste isolement : les montants sont fournis par l'appelant. */
+export function shippingCentsFor(
+	subtotalCents: number,
+	shipping: { flatCents: number; freeThresholdCents: number }
+) {
+	return subtotalCents >= shipping.freeThresholdCents ? 0 : shipping.flatCents;
+}
+
+export async function computeShippingCents(subtotalCents: number) {
+	return shippingCentsFor(subtotalCents, await getSetting('shipping'));
 }
 
 export type PricedLine = {
@@ -90,7 +101,7 @@ export async function createPendingOrder(input: {
 		(total, line) => total + line.unitPriceCents * line.quantity,
 		0
 	);
-	const shippingCents = computeShippingCents(subtotalCents);
+	const shippingCents = await computeShippingCents(subtotalCents);
 
 	return prisma.order.create({
 		data: {

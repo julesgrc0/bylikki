@@ -3,6 +3,7 @@
 	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
 	import ReceiptIcon from '@lucide/svelte/icons/receipt';
+	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import StoreIcon from '@lucide/svelte/icons/store';
 	import TagsIcon from '@lucide/svelte/icons/tags';
 	import UsersIcon from '@lucide/svelte/icons/users';
@@ -18,7 +19,8 @@
 		{ href: resolve('/admin/commandes'), label: 'Commandes', icon: ReceiptIcon, exact: false },
 		{ href: resolve('/admin/comptes'), label: 'Comptes', icon: UsersIcon, exact: false },
 		{ href: resolve('/admin/avis'), label: 'Avis', icon: MessageSquareIcon, exact: false },
-		{ href: resolve('/admin/catalogue'), label: 'Catalogue', icon: TagsIcon, exact: false }
+		{ href: resolve('/admin/catalogue'), label: 'Catalogue', icon: TagsIcon, exact: false },
+		{ href: resolve('/admin/parametres'), label: 'Paramètres', icon: SettingsIcon, exact: false }
 	];
 
 	const isActive = (link: (typeof links)[number]) =>
