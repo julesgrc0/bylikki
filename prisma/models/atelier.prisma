@@ -1,0 +1,54 @@
+enum ComponentKind {
+  BEAD
+  CLASP
+  CHARM
+  CORD
+}
+
+/// Piece elementaire de l'atelier : une perle, un fermoir, une breloque, un
+/// cordon. C'est un article a part entiere, avec son prix et son stock, et non
+/// une simple couleur : l'atelier doit savoir ce qu'il a a enfiler.
+model Component {
+  id String @id @default(uuid(7))
+
+  key       String        @unique
+  label     String
+  kind      ComponentKind @default(BEAD)
+  hexColor  String        @default("#F0369B")
+  /// Diametre en millimetres, utilise pour l'apercu et la longueur du collier
+  sizeMm    Int           @default(8)
+  priceCents Int          @default(0)
+  stock     Int           @default(0)
+  available Boolean       @default(true)
+  position  Int           @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, position])
+}
+
+/// Creation enregistree : la suite ordonnee de composants, son apercu et son
+/// prix au moment de l'enregistrement. Elle suit la commande jusqu'a l'atelier.
+model CustomDesign {
+  id String @id @default(uuid(7))
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  /// Jeton de partage : permet d'envoyer un lien vers sa creation
+  shareToken String @unique
+
+  /// Cles des composants, dans l'ordre d'enfilage
+  slots Json
+
+  previewSvg String
+  priceCents Int
+  lengthMm   Int    @default(0)
+
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

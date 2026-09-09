@@ -374,7 +374,9 @@ export function findAdminOrder(reference: string) {
 					quantity: true,
 					unitPriceCents: true,
 					totalCents: true,
-					customization: true
+					customization: true,
+					/** L'apercu dit a l'atelier ce qu'il doit fabriquer. */
+					customDesign: { select: { shareToken: true, previewSvg: true, lengthMm: true } }
 				}
 			}
 		}

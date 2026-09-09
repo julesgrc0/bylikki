@@ -133,6 +133,12 @@ class UiStore {
 		}
 	}
 
+	openCart() {
+		this.cartOpen = true;
+		this.menuOpen = false;
+		this.searchOpen = false;
+	}
+
 	toggleCart() {
 		this.cartOpen = !this.cartOpen;
 		if (this.cartOpen) {

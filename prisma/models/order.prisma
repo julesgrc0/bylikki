@@ -98,6 +98,10 @@ model OrderItem {
   /// Options de personnalisation choisies : [{ key, label, value, priceDeltaCents }]
   customization Json?
 
+  /// Creation de l'atelier, s'il y en a une : c'est ce que l'atelier fabrique
+  customDesignId String?
+  customDesign   CustomDesign? @relation(fields: [customDesignId], references: [id], onDelete: SetNull)
+
   /// Unites reellement prelevees du stock a la confirmation du paiement.
   /// Peut etre inferieur a `quantity` en cas de survente ; c'est ce montant,
   /// et lui seul, qui est remis en rayon lors d'un remboursement.

@@ -20,6 +20,7 @@ model User {
   restockAlerts RestockAlert[]
   reviewVotes   ReviewVote[]
   redemptions   DiscountRedemption[]
+  designs       CustomDesign[]
 
   /// Cumul des achats payes, denormalise : il determine le palier de fidelite
   /// et redescend en cas de remboursement

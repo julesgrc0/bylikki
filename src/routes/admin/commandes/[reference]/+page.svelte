@@ -140,6 +140,17 @@
 											{/each}
 										{/if}
 									</div>
+
+									{#if item.customDesign}
+										<div class="mt-2 max-w-[280px] rounded-md border bg-muted/40 p-2">
+											<!-- eslint-disable-next-line svelte/no-at-html-tags -- SVG construit par le serveur -->
+											{@html item.customDesign.previewSvg}
+											<div class="mt-1 text-xs text-muted-foreground">
+												Création de l'atelier · {Math.round(item.customDesign.lengthMm / 10)} cm ·
+												<span class="font-mono">{item.customDesign.shareToken}</span>
+											</div>
+										</div>
+									{/if}
 								</TableCell>
 								<TableCell class="text-right tabular-nums">{item.quantity}</TableCell>
 								<TableCell class="text-right tabular-nums">

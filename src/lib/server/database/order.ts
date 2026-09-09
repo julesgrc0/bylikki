@@ -1,6 +1,7 @@
 import { settingDefaults } from '#lib/client/validation/settings';
 import type { Prisma } from '$prisma/client';
 import { generateOrderReference } from '../utils/reference';
+import { designIdOf, isDesignLine } from './cart';
 import { prisma } from './client';
 import { releaseDiscount, reserveDiscount } from './discount';
 import { getSetting } from './settings';
@@ -154,17 +155,23 @@ export async function createPendingOrder(input: {
 				shippingCity: input.address.city,
 				shippingCountry: input.address.country,
 				items: {
-					create: input.lines.map((line) => ({
-						productId: line.productId,
-						variantId: line.variantId,
-						productSlug: line.productSlug,
-						productName: line.productName,
-						variantLabel: line.variantLabel,
-						unitPriceCents: line.unitPriceCents,
-						quantity: line.quantity,
-						totalCents: line.unitPriceCents * line.quantity,
-						customization: line.customization.length > 0 ? line.customization : undefined
-					}))
+					create: input.lines.map((line) => {
+						/** Une creation de l'atelier n'a ni produit ni variante au catalogue. */
+						const design = isDesignLine(line.variantId);
+
+						return {
+							productId: design ? null : line.productId,
+							variantId: design ? null : line.variantId,
+							customDesignId: design ? designIdOf(line.variantId) : null,
+							productSlug: line.productSlug,
+							productName: line.productName,
+							variantLabel: line.variantLabel,
+							unitPriceCents: line.unitPriceCents,
+							quantity: line.quantity,
+							totalCents: line.unitPriceCents * line.quantity,
+							customization: line.customization.length > 0 ? line.customization : undefined
+						};
+					})
 				},
 				...(discount
 					? {

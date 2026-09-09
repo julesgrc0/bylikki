@@ -1,4 +1,5 @@
 import type { CartLineInput } from '#lib/client/validation/cart';
+import { findDesignForCart, priceDesign } from './design';
 import type { PricedLine } from './order';
 import { findCustomizationOptions, findVariantsForCheckout } from './product';
 
@@ -15,6 +16,17 @@ export type PricedCart = {
  * Seule source de verite des prix : ceux envoyes par le client sont ignores.
  * La disponibilite et les options de personnalisation sont revalidees ici.
  */
+/** Une ligne d'atelier porte l'identifiant de la creation, pas d'une variante. */
+export const DESIGN_PREFIX = 'design:';
+
+export function isDesignLine(variantId: string) {
+	return variantId.startsWith(DESIGN_PREFIX);
+}
+
+export function designIdOf(variantId: string) {
+	return variantId.slice(DESIGN_PREFIX.length);
+}
+
 export async function priceCartLines(lines: CartLineInput[]): Promise<PricedCart> {
 	const issues: CartIssue[] = [];
 
@@ -22,7 +34,57 @@ export async function priceCartLines(lines: CartLineInput[]): Promise<PricedCart
 		return { lines: [], issues, subtotalCents: 0, currency: 'EUR' };
 	}
 
-	const variants = await findVariantsForCheckout(lines.map((line) => line.variantId));
+	const designLines = lines.filter((line) => isDesignLine(line.variantId));
+	const variantLines = lines.filter((line) => !isDesignLine(line.variantId));
+
+	/**
+	 * Les creations de l'atelier sont rechiffrees depuis leurs composants :
+	 * le prix enregistre ne fait pas foi si un composant a change entre-temps.
+	 */
+	const pricedDesigns: (PricedLine & { available: number })[] = [];
+
+	for (const line of designLines) {
+		const design = await findDesignForCart(designIdOf(line.variantId));
+
+		if (!design) {
+			issues.push({
+				variantId: line.variantId,
+				message: "Cette création n'existe plus."
+			});
+			continue;
+		}
+
+		const slots = design.slots as { beads?: string[]; clasp?: string | null };
+		const priced = await priceDesign(slots.beads ?? [], slots.clasp ?? null);
+
+		if (priced.issues.length > 0) {
+			issues.push({ variantId: line.variantId, message: priced.issues[0].message });
+			continue;
+		}
+
+		pricedDesigns.push({
+			variantId: line.variantId,
+			productId: '',
+			productSlug: 'atelier',
+			productName: 'Création de l’atelier',
+			variantLabel: `${(slots.beads ?? []).length} éléments · ${Math.round(priced.lengthMm / 10)} cm`,
+			unitPriceCents: priced.priceCents,
+			quantity: line.quantity,
+			customization: [],
+			available: line.quantity
+		});
+	}
+
+	if (variantLines.length === 0) {
+		const subtotalCents = pricedDesigns.reduce(
+			(total, line) => total + line.unitPriceCents * line.quantity,
+			0
+		);
+
+		return { lines: pricedDesigns, issues, subtotalCents, currency: 'EUR' };
+	}
+
+	const variants = await findVariantsForCheckout(variantLines.map((line) => line.variantId));
 	const variantById = new Map(variants.map((variant) => [variant.id, variant]));
 	const options = await findCustomizationOptions([
 		...new Set(variants.map((variant) => variant.productId))
@@ -30,7 +92,7 @@ export async function priceCartLines(lines: CartLineInput[]): Promise<PricedCart
 
 	const priced: (PricedLine & { available: number })[] = [];
 
-	for (const line of lines) {
+	for (const line of variantLines) {
 		const variant = variantById.get(line.variantId);
 
 		if (!variant) {
@@ -122,10 +184,12 @@ export async function priceCartLines(lines: CartLineInput[]): Promise<PricedCart
 		});
 	}
 
+	const allLines = [...priced, ...pricedDesigns];
+
 	return {
-		lines: priced,
+		lines: allLines,
 		issues,
-		subtotalCents: priced.reduce((total, line) => total + line.unitPriceCents * line.quantity, 0),
+		subtotalCents: allLines.reduce((total, line) => total + line.unitPriceCents * line.quantity, 0),
 		currency: variants[0]?.product.currency ?? 'EUR'
 	};
 }

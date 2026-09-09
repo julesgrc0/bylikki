@@ -17,7 +17,7 @@ export function targetHref(target: LinkTarget) {
 		case 'product':
 			return resolve('/[slug]', { slug: target.slug });
 		case 'atelier':
-			return resolve('/search?query=personnalisable');
+			return resolve('/atelier');
 		case 'none':
 			return null;
 	}

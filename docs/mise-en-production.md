@@ -1,7 +1,8 @@
 # État du site et checklist avant mise en production
 
 Dernière mise à jour : septembre 2026, après le chantier de mise en production (migrations,
-paiement, e-mails, factures, SEO, tests).
+paiement, e-mails, factures, SEO, tests) puis celui des fonctionnalités (paramètres
+d'administration, atelier de création, avis enrichis, promotions, fidélité, mesure).
 
 **Ce qui reste strictement à ta charge est réuni dans `docs/a-completer.md`.** Ce document-ci
 décrit l'état technique du site.
@@ -23,7 +24,10 @@ Il est volontairement franc : tout ce qui est marqué **bloquant** empêche une 
 | SEO            | Sitemap, canoniques, Open Graph, JSON-LD Product / Organization                  |
 | Avis           | Dépôt avec photos, modération, note moyenne dénormalisée                         |
 | RGPD           | Export, rectification, effacement avec délai, consentements, sessions révocables |
-| Administration | Tableau de bord, produits, commandes, comptes, avis, catalogue                   |
+| Administration | Tableau de bord, produits, commandes, comptes, avis, catalogue, paramètres       |
+| Atelier        | Création d'un bijou au glisser-déposer et au clavier, prix serveur, partage      |
+| Fidélisation   | Liste d'envies, alertes de réassort, newsletter, codes de réduction, paliers     |
+| Mesure         | Entonnoir d'achat et recherches sans résultat, agrégés, sans cookie              |
 
 Vérifié en conditions réelles sur une base PostgreSQL locale : parcours de connexion complet,
 ajout au panier avec personnalisation, création et suppression de produit depuis l'admin,

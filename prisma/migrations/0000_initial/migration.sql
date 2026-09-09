@@ -2,6 +2,9 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
+CREATE TYPE "ComponentKind" AS ENUM ('BEAD', 'CLASP', 'CHARM', 'CORD');
+
+-- CreateEnum
 CREATE TYPE "DiscountKind" AS ENUM ('PERCENTAGE', 'FIXED_AMOUNT', 'FREE_SHIPPING');
 
 -- CreateEnum
@@ -33,6 +36,38 @@ CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'AUTHORIZED', 'PAID', 'FAILED', 
 
 -- CreateEnum
 CREATE TYPE "ReviewStatus" AS ENUM ('PENDING', 'PUBLISHED', 'REJECTED');
+
+-- CreateTable
+CREATE TABLE "Component" (
+    "id" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "kind" "ComponentKind" NOT NULL DEFAULT 'BEAD',
+    "hexColor" TEXT NOT NULL DEFAULT '#F0369B',
+    "sizeMm" INTEGER NOT NULL DEFAULT 8,
+    "priceCents" INTEGER NOT NULL DEFAULT 0,
+    "stock" INTEGER NOT NULL DEFAULT 0,
+    "available" BOOLEAN NOT NULL DEFAULT true,
+    "position" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Component_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CustomDesign" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT,
+    "shareToken" TEXT NOT NULL,
+    "slots" JSONB NOT NULL,
+    "previewSvg" TEXT NOT NULL,
+    "priceCents" INTEGER NOT NULL,
+    "lengthMm" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CustomDesign_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "Session" (
@@ -366,6 +401,7 @@ CREATE TABLE "OrderItem" (
     "quantity" INTEGER NOT NULL,
     "totalCents" INTEGER NOT NULL,
     "customization" JSONB,
+    "customDesignId" TEXT,
     "stockTaken" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "OrderItem_pkey" PRIMARY KEY ("id")
@@ -503,6 +539,18 @@ CREATE TABLE "_ProductCategories" (
 
     CONSTRAINT "_ProductCategories_AB_pkey" PRIMARY KEY ("A","B")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Component_key_key" ON "Component"("key");
+
+-- CreateIndex
+CREATE INDEX "Component_kind_position_idx" ON "Component"("kind", "position");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CustomDesign_shareToken_key" ON "CustomDesign"("shareToken");
+
+-- CreateIndex
+CREATE INDEX "CustomDesign_userId_createdAt_idx" ON "CustomDesign"("userId", "createdAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Session_secretHash_key" ON "Session"("secretHash");
@@ -691,6 +739,9 @@ CREATE UNIQUE INDEX "UserConsent_userId_type_key" ON "UserConsent"("userId", "ty
 CREATE INDEX "_ProductCategories_B_index" ON "_ProductCategories"("B");
 
 -- AddForeignKey
+ALTER TABLE "CustomDesign" ADD CONSTRAINT "CustomDesign_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -746,6 +797,9 @@ ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_productId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ProductVariant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_customDesignId_fkey" FOREIGN KEY ("customDesignId") REFERENCES "CustomDesign"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Review" ADD CONSTRAINT "Review_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;

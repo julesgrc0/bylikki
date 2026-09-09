@@ -18,12 +18,12 @@
 				Choisis tes perles →<br class="hidden lg:inline" /> assemble → crée ton bijou
 			</h2>
 			<p class="mt-4 mb-0 max-w-[420px] text-[15px] leading-[1.55] text-ink/75 lg:text-[16px]">
-				Clique sur les perles pour composer ton collier. Dans la boutique, tu pourras aussi les
-				faire glisser et changer le fermoir.
+				Clique sur les perles pour composer ton collier, fais-les glisser pour les remettre dans
+				l'ordre, choisis ton fermoir. Le prix se met à jour à chaque perle.
 			</p>
 			<div class="mt-5 flex flex-wrap items-center gap-3.5 lg:mt-[26px]">
 				<a
-					href={resolve('/search?query=personnalisable')}
+					href={resolve('/atelier')}
 					class="rounded-[40px] bg-ink px-[26px] py-3.5 text-[16px] text-cream hover:bg-ink/90"
 				>
 					Créer mon bijou →
@@ -45,7 +45,7 @@
 			>
 				<span>Atelier — aperçu</span>
 				<span class="font-hand text-[17px] tracking-normal text-pink normal-case">
-					glisser-déposer à l’implémentation ✦
+					à toi de jouer ✦
 				</span>
 				<span>{strand.beads.length} perles</span>
 			</div>
