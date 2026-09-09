@@ -308,7 +308,7 @@ export async function listAdminOrders(filters: {
 		prisma.order.count({ where }),
 		prisma.order.findMany({
 			where,
-			orderBy: { createdAt: 'desc' },
+			orderBy: [{ needsAttention: 'desc' }, { createdAt: 'desc' }],
 			skip: (filters.page - 1) * ADMIN_PAGE_SIZE,
 			take: ADMIN_PAGE_SIZE,
 			select: {
@@ -319,6 +319,7 @@ export async function listAdminOrders(filters: {
 				totalCents: true,
 				createdAt: true,
 				trackingNumber: true,
+				needsAttention: true,
 				_count: { select: { items: true } }
 			}
 		})
@@ -353,6 +354,9 @@ export function findAdminOrder(reference: string) {
 			shippingCity: true,
 			shippingCountry: true,
 			trackingNumber: true,
+			invoiceNumber: true,
+			needsAttention: true,
+			attentionReason: true,
 			stripePaymentIntentId: true,
 			createdAt: true,
 			paidAt: true,

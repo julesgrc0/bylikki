@@ -87,6 +87,12 @@
 			<h1 class="font-mono text-2xl font-semibold tracking-tight">{order.reference}</h1>
 			<p class="text-sm text-muted-foreground">
 				{order.contactEmail} · {dateFormatter.format(order.createdAt)}
+				{#if order.invoiceNumber}
+					· <a
+						href={resolve('/profile/commande/[reference]/facture', { reference: order.reference })}
+						class="underline">facture n° {order.invoiceNumber}</a
+					>
+				{/if}
 			</p>
 		</div>
 		<div class="flex items-center gap-2">
@@ -97,6 +103,15 @@
 			<Button variant="ghost" href={resolve('/admin/commandes')}>Retour</Button>
 		</div>
 	</div>
+
+	{#if order.needsAttention}
+		<Card class="border-destructive">
+			<CardHeader><CardTitle>À traiter</CardTitle></CardHeader>
+			<CardContent class="text-sm">
+				{order.attentionReason ?? 'Cette commande demande une vérification.'}
+			</CardContent>
+		</Card>
+	{/if}
 
 	<div class="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
 		<Card>

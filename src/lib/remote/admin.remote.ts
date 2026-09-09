@@ -35,6 +35,11 @@ import { moderateReview } from '#lib/server/database/review';
 import { purgeUserAccount } from '#lib/server/database/user';
 import { requireAdmin } from '#lib/server/security/guard';
 import { deleteImage, isBlobConfigured, uploadImage } from '#lib/server/utils/blob';
+import {
+	buildCancellationMail,
+	buildShippingMail,
+	sendMailQuietly
+} from '#lib/server/utils/mailer';
 import { runRetentionPurge } from '#lib/server/utils/retention';
 import {
 	adminOrderFiltersSchema,
@@ -55,7 +60,7 @@ import {
 } from '#lib/server/validation/catalog';
 import { orderStatusUpdateSchema, reviewModerationSchema } from '#lib/server/validation/order';
 import * as v from 'valibot';
-import { command, form, query } from '$app/server';
+import { command, form, getRequestEvent, query } from '$app/server';
 
 /**
  * Points d'entree reserves au role ADMIN. Chacun verifie les droits lui-meme :
@@ -247,6 +252,33 @@ export const setOrderStatus = command(
 		requireAdmin();
 
 		const updated = await updateOrderStatus(reference, status, trackingNumber);
+		const origin = getRequestEvent().url.origin;
+
+		if (status === 'SHIPPED') {
+			await sendMailQuietly({
+				to: updated.contactEmail,
+				...buildShippingMail({
+					reference: updated.reference,
+					totalCents: updated.totalCents,
+					currency: updated.currency,
+					trackingNumber: updated.trackingNumber,
+					origin
+				})
+			});
+		}
+
+		if (status === 'CANCELLED') {
+			await sendMailQuietly({
+				to: updated.contactEmail,
+				...buildCancellationMail({
+					reference: updated.reference,
+					totalCents: updated.totalCents,
+					currency: updated.currency,
+					origin
+				})
+			});
+		}
+
 		await getAdminOrder(reference).refresh();
 
 		return updated;

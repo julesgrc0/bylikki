@@ -102,7 +102,7 @@ export async function sendOtpCode(
 		ipHash
 	});
 
-	await sendMail({ to: email, ...buildOtpMail(code, OTP_TTL_MINUTES) });
+	await sendMail({ to: email, ...buildOtpMail(code, OTP_TTL_MINUTES, event.url.origin) });
 	setPendingEmail(event.cookies, email);
 
 	return { status: 'sent' };

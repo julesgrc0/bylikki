@@ -8,14 +8,13 @@
 	import RatingStars from '#lib/client/ui/RatingStars.svelte';
 	import ReviewForm from '#lib/client/ui/ReviewForm.svelte';
 	import ReviewList from '#lib/client/ui/ReviewList.svelte';
+	import SeoHead from '#lib/client/ui/SeoHead.svelte';
 	import VariantPicker from '#lib/client/ui/VariantPicker.svelte';
 	import { formatPrice } from '#lib/client/utils/money';
 	import { getProduct } from '#lib/remote/product.remote';
 	import { getProductReviews } from '#lib/remote/review.remote';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-
-	let { data } = $props();
 
 	const slug = $derived(page.params.slug ?? '');
 	/**
@@ -36,6 +35,37 @@
 	const missingRequired = $derived(
 		product.customizations.some((option) => option.required && !selection[option.key])
 	);
+
+	const canonicalUrl = $derived(`${page.url.origin}${page.url.pathname}`);
+
+	/** Donnees structurees Product : prix, disponibilite et note moyenne. */
+	const productSchema = $derived({
+		'@context': 'https://schema.org',
+		'@type': 'Product',
+		name: product.name,
+		description: product.summary ?? product.description,
+		sku: product.slug,
+		image: product.images.map((image) => new URL(image.url, page.url.origin).href),
+		brand: { '@type': 'Brand', name: 'BYLIKKI' },
+		offers: {
+			'@type': 'Offer',
+			priceCurrency: product.currency,
+			price: (unitPriceCents / 100).toFixed(2),
+			availability: product.variants.some((candidate) => candidate.stock > 0)
+				? 'https://schema.org/InStock'
+				: 'https://schema.org/OutOfStock',
+			url: canonicalUrl
+		},
+		...(product.reviewCount > 0
+			? {
+					aggregateRating: {
+						'@type': 'AggregateRating',
+						ratingValue: product.ratingAverage.toFixed(1),
+						reviewCount: product.reviewCount
+					}
+				}
+			: {})
+	});
 
 	let selectedVariantId = $state<string | undefined>(undefined);
 	let selection = $state<CustomizationSelection>({});
@@ -65,10 +95,14 @@
 	}
 </script>
 
-<svelte:head>
-	<title>{data.name} — BYLIKKI</title>
-	<meta name="description" content={data.summary ?? `${data.name}, piece faite main a Nantes.`} />
-</svelte:head>
+<SeoHead
+	title="{product.name} — BYLIKKI"
+	description={product.summary ?? `${product.name}, pièce faite main à Nantes.`}
+	canonical={canonicalUrl}
+	image={product.images[0]?.url ?? null}
+	type="product"
+	structuredData={productSchema}
+/>
 
 <div class="relative px-5 pt-6 pb-16 lg:px-[70px] lg:pt-9 lg:pb-20">
 	<nav class="relative mb-5 text-[13px] text-ink/55 lg:mb-[22px]">
@@ -87,6 +121,7 @@
 					<button
 						onclick={() => (imageIndex = index)}
 						aria-label={`Voir la photo ${index + 1}`}
+						aria-pressed={imageIndex === index}
 						class="h-[70px] w-[70px] cursor-pointer overflow-hidden rounded-[12px] border-[1.5px] lg:h-[110px] lg:w-full {imageIndex ===
 						index
 							? 'border-2 border-ink'

@@ -6,12 +6,14 @@ import {
 	cancelUserOrder,
 	computeShippingCents,
 	createPendingOrder,
+	findOrderMailContext,
 	findUserOrder,
 	listUserOrders
 } from '#lib/server/database/order';
 import { findAddress } from '#lib/server/database/user';
 import { requireUser } from '#lib/server/security/guard';
 import { consumeRateLimit } from '#lib/server/security/rate-limit';
+import { buildCancellationMail, sendMailQuietly } from '#lib/server/utils/mailer';
 import { createCheckoutSession, isStripeConfigured } from '#lib/server/utils/stripe';
 import { orderReferenceSchema } from '#lib/server/validation/order';
 import * as v from 'valibot';
@@ -133,6 +135,20 @@ export const cancelMyOrder = command(orderReferenceSchema, async (reference) => 
 
 	if (cancelled.count === 0) {
 		error(409, 'Cette commande ne peut plus être annulée depuis le site.');
+	}
+
+	const order = await findOrderMailContext(reference);
+
+	if (order) {
+		await sendMailQuietly({
+			to: order.contactEmail,
+			...buildCancellationMail({
+				reference: order.reference,
+				totalCents: order.totalCents,
+				currency: order.currency,
+				origin: getRequestEvent().url.origin
+			})
+		});
 	}
 
 	await getMyOrders().refresh();

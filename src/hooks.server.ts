@@ -1,6 +1,9 @@
 import type { Handle } from '@sveltejs/kit';
 import { resolveSession } from '#lib/server/security/session';
+import { checkEnvironment } from '#lib/server/utils/env';
 import { dev } from '$app/environment';
+
+checkEnvironment();
 
 /**
  * Resout la session a chaque requete et pose les en-tetes de securite communs.

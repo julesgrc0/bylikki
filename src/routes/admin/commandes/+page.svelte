@@ -107,7 +107,12 @@
 			<TableBody>
 				{#each orders.items as order (order.reference)}
 					<TableRow>
-						<TableCell class="font-mono text-xs">{order.reference}</TableCell>
+						<TableCell class="font-mono text-xs">
+							{order.reference}
+							{#if order.needsAttention}
+								<Badge variant="destructive" class="ml-2">à traiter</Badge>
+							{/if}
+						</TableCell>
 						<TableCell class="text-muted-foreground">{order.contactEmail}</TableCell>
 						<TableCell><Badge variant="secondary">{order.status}</Badge></TableCell>
 						<TableCell>

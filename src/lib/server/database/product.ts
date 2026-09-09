@@ -399,3 +399,21 @@ export function findProductIdBySlug(slug: string) {
 		select: { id: true, name: true, slug: true, summary: true }
 	});
 }
+
+/** Pages publiques indexables : produits en ligne et categories utilisees. */
+export async function listSitemapEntries() {
+	const [products, categories] = await Promise.all([
+		prisma.product.findMany({
+			where: publishedOnly,
+			orderBy: { updatedAt: 'desc' },
+			select: { slug: true, updatedAt: true }
+		}),
+		prisma.category.findMany({
+			where: { products: { some: publishedOnly } },
+			orderBy: { position: 'asc' },
+			select: { slug: true, updatedAt: true }
+		})
+	]);
+
+	return { products, categories };
+}

@@ -1,14 +1,8 @@
 @import 'tailwindcss';
 
-@font-face {
-	font-family: 'Sabrina';
-	src: url('/fonts/Sabrina.woff2') format('woff2');
-	font-display: swap;
-}
-
 @theme {
 	--font-sans: 'Quicksand', system-ui, sans-serif;
-	--font-hand: 'Sabrina', 'Caveat', cursive;
+	--font-hand: 'Caveat', cursive;
 	--font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
 	--color-ink: #2e1b33;
@@ -157,4 +151,21 @@
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
 	--radius-xl: calc(var(--radius) + 4px);
+}
+
+/**
+ * Impression : seul le contenu principal sort de l'imprimante. La navigation,
+ * les tiroirs et le pied de page n'ont pas de sens sur une facture papier.
+ */
+@media print {
+	body {
+		background: #fff;
+	}
+
+	.site-shell > header,
+	.site-shell > footer,
+	.site-shell > aside,
+	.site-shell > div {
+		display: none !important;
+	}
 }

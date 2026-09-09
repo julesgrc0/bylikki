@@ -3,9 +3,9 @@ import { findProductIdBySlug } from '#lib/server/database/product';
 import type { PageServerLoad } from './$types';
 
 /**
- * Metadonnees de la page rendues cote serveur : le titre et la description
- * doivent exister des le premier octet, y compris pour les moteurs de recherche.
- * Le contenu de la fiche, lui, passe par les remote functions.
+ * Verifie l'existence de la fiche avant tout rendu : une piece retiree de la
+ * vente doit repondre 404, et non une page vide. Le contenu et les
+ * metadonnees viennent ensuite des remote functions, attendues au rendu.
  */
 export const load: PageServerLoad = async ({ params }) => {
 	const product = await findProductIdBySlug(params.slug);
@@ -14,5 +14,5 @@ export const load: PageServerLoad = async ({ params }) => {
 		error(404, "Cette création n'existe pas ou n'est plus en ligne.");
 	}
 
-	return { name: product.name, summary: product.summary };
+	return { slug: product.slug };
 };

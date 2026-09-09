@@ -77,5 +77,16 @@ export default defineConfig(
 				extraFileExtensions: ['.svelte']
 			}
 		}
+	},
+	{
+		/**
+		 * Les gabarits d'e-mail ne naviguent pas dans l'application : leurs liens
+		 * sont des URL absolues destinees a une boite de reception, ou `resolve()`
+		 * n'a aucun sens.
+		 */
+		files: ['src/lib/server/emails/**/*.svelte'],
+		rules: {
+			'svelte/no-navigation-without-resolve': 'off'
+		}
 	}
 );

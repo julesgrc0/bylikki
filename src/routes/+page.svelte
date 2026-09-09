@@ -4,22 +4,46 @@
 	import HeroCarousel from '#lib/client/ui/HeroCarousel.svelte';
 	import ProductGrid from '#lib/client/ui/ProductGrid.svelte';
 	import ReviewsSection from '#lib/client/ui/ReviewsSection.svelte';
+	import SeoHead from '#lib/client/ui/SeoHead.svelte';
 	import UniversesSection from '#lib/client/ui/UniversesSection.svelte';
 	import { getFeaturedProducts } from '#lib/remote/product.remote';
 	import { getLatestReviews } from '#lib/remote/review.remote';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 
 	/** Les deux requetes partent ensemble : la page part complete dans le HTML. */
 	const [featured, reviews] = await Promise.all([getFeaturedProducts(), getLatestReviews()]);
+
+	const siteSchema = $derived([
+		{
+			'@context': 'https://schema.org',
+			'@type': 'Organization',
+			name: 'BYLIKKI',
+			url: page.url.origin,
+			description: 'Bijoux et pièces cousues faites main à Nantes, en petites séries.',
+			email: 'bonjour@bylikki.fr',
+			address: { '@type': 'PostalAddress', addressLocality: 'Nantes', addressCountry: 'FR' }
+		},
+		{
+			'@context': 'https://schema.org',
+			'@type': 'WebSite',
+			name: 'BYLIKKI',
+			url: page.url.origin,
+			potentialAction: {
+				'@type': 'SearchAction',
+				target: `${page.url.origin}/search?query={search_term_string}`,
+				'query-input': 'required name=search_term_string'
+			}
+		}
+	]);
 </script>
 
-<svelte:head>
-	<title>BYLIKKI — des créations faites pour te ressembler</title>
-	<meta
-		name="description"
-		content="Bijoux et pièces cousues faites main à Nantes, en petites séries. Personnalise ton bijou perle par perle."
-	/>
-</svelte:head>
+<SeoHead
+	title="BYLIKKI — des créations faites pour te ressembler"
+	description="Bijoux et pièces cousues faites main à Nantes, en petites séries. Personnalise ton bijou perle par perle."
+	canonical="{page.url.origin}/"
+	structuredData={siteSchema}
+/>
 
 <HeroCarousel products={featured} />
 

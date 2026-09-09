@@ -1,3 +1,7 @@
-# allow crawling everything by default
 User-agent: *
-Disallow:
+Disallow: /admin
+Disallow: /profile
+Disallow: /sign
+Disallow: /api
+
+Sitemap: https://bylikki.fr/sitemap.xml

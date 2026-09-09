@@ -2,6 +2,7 @@
 	import { toMessage } from '#lib/client/utils/errors';
 	import { formatPrice } from '#lib/client/utils/money';
 	import { cancelMyOrder, type getMyOrders } from '#lib/remote/order.remote';
+	import { resolve } from '$app/paths';
 
 	type Order = Awaited<ReturnType<typeof getMyOrders>>[number];
 
@@ -89,6 +90,14 @@
 
 	<div class="flex flex-row items-center justify-between gap-2.5 lg:flex-col lg:items-end">
 		<span class="text-[22px] font-semibold">{formatPrice(order.totalCents)}</span>
+		{#if order.invoiceNumber}
+			<a
+				href={resolve('/profile/commande/[reference]/facture', { reference: order.reference })}
+				class="text-[13px] text-ink/75 underline"
+			>
+				Voir la facture
+			</a>
+		{/if}
 		{#if cancellable}
 			<button
 				onclick={cancel}

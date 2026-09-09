@@ -31,6 +31,14 @@ model Order {
 
   trackingNumber String?
 
+  /// Numerotation continue des factures, attribuee au paiement
+  invoiceNumber Int?      @unique
+  invoicedAt    DateTime?
+
+  /// Leve quand la confirmation de paiement n'a pas pu decrementer le stock
+  needsAttention  Boolean @default(false)
+  attentionReason String?
+
   items OrderItem[]
 
   paidAt      DateTime?
@@ -44,6 +52,14 @@ model Order {
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([needsAttention])
+}
+
+/// Sequences applicatives. La numerotation des factures doit etre continue et
+/// sans trou : elle est incrementee dans la transaction qui valide le paiement.
+model Counter {
+  name  String @id
+  value Int    @default(0)
 }
 
 model OrderItem {
@@ -68,6 +84,11 @@ model OrderItem {
 
   /// Options de personnalisation choisies : [{ key, label, value, priceDeltaCents }]
   customization Json?
+
+  /// Unites reellement prelevees du stock a la confirmation du paiement.
+  /// Peut etre inferieur a `quantity` en cas de survente ; c'est ce montant,
+  /// et lui seul, qui est remis en rayon lors d'un remboursement.
+  stockTaken Int @default(0)
 
   @@index([orderId])
   @@index([productId])

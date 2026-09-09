@@ -1,5 +1,8 @@
+import type { Prisma } from '$prisma/client';
 import { generateOrderReference } from '../utils/reference';
 import { prisma } from './client';
+
+const INVOICE_COUNTER = 'invoice';
 
 export const SHIPPING_FLAT_CENTS = 490;
 export const FREE_SHIPPING_THRESHOLD_CENTS = 6000;
@@ -22,6 +25,7 @@ export type ShippingAddressSnapshot = {
 const orderSelect = {
 	id: true,
 	reference: true,
+	contactEmail: true,
 	status: true,
 	paymentStatus: true,
 	subtotalCents: true,
@@ -35,6 +39,10 @@ const orderSelect = {
 	shippingCity: true,
 	shippingCountry: true,
 	trackingNumber: true,
+	invoiceNumber: true,
+	invoicedAt: true,
+	needsAttention: true,
+	attentionReason: true,
 	createdAt: true,
 	paidAt: true,
 	shippedAt: true,
@@ -125,18 +133,53 @@ export function attachStripeSession(orderId: string, stripeSessionId: string) {
 	});
 }
 
+/** Sequence de facturation : continue, sans trou, incrementee dans la transaction. */
+async function nextInvoiceNumber(transaction: Prisma.TransactionClient) {
+	const counter = await transaction.counter.upsert({
+		where: { name: INVOICE_COUNTER },
+		create: { name: INVOICE_COUNTER, value: 1 },
+		update: { value: { increment: 1 } },
+		select: { value: true }
+	});
+
+	return counter.value;
+}
+
+export type PaidOrder = {
+	id: string;
+	reference: string;
+	contactEmail: string;
+	invoiceNumber: number | null;
+	totalCents: number;
+	currency: string;
+	shortages: { productName: string; variantLabel: string; missing: number }[];
+};
+
 /**
  * Confirmation de paiement : idempotente, car Stripe peut rejouer un webhook.
- * Le stock n'est decremente qu'au premier passage.
+ * Le stock n'est decremente qu'au premier passage, et seulement s'il reste
+ * disponible : sur une piece unique vendue deux fois, la commande est payee
+ * mais signalee a l'administration plutot que de laisser un stock negatif.
  */
-export async function markOrderPaid(stripeSessionId: string, paymentIntentId: string | null) {
+export async function markOrderPaid(
+	stripeSessionId: string,
+	paymentIntentId: string | null
+): Promise<PaidOrder | null> {
 	return prisma.$transaction(async (transaction) => {
 		const order = await transaction.order.findUnique({
 			where: { stripeSessionId },
 			select: {
 				id: true,
 				paymentStatus: true,
-				items: { select: { variantId: true, quantity: true } }
+				items: {
+					select: {
+						id: true,
+						variantId: true,
+						quantity: true,
+						productName: true,
+						variantLabel: true
+					}
+				}
 			}
 		});
 
@@ -144,11 +187,106 @@ export async function markOrderPaid(stripeSessionId: string, paymentIntentId: st
 			return null;
 		}
 
+		const shortages: PaidOrder['shortages'] = [];
+
 		for (const item of order.items) {
-			if (item.variantId) {
-				await transaction.productVariant.update({
+			if (!item.variantId) {
+				continue;
+			}
+
+			const decremented = await transaction.productVariant.updateMany({
+				where: { id: item.variantId, stock: { gte: item.quantity } },
+				data: { stock: { decrement: item.quantity } }
+			});
+
+			if (decremented.count > 0) {
+				await transaction.orderItem.update({
+					where: { id: item.id },
+					data: { stockTaken: item.quantity }
+				});
+				continue;
+			}
+
+			const variant = await transaction.productVariant.findUnique({
+				where: { id: item.variantId },
+				select: { stock: true }
+			});
+			const available = Math.max(0, variant?.stock ?? 0);
+
+			await transaction.productVariant.update({
+				where: { id: item.variantId },
+				data: { stock: 0 }
+			});
+			await transaction.orderItem.update({
+				where: { id: item.id },
+				data: { stockTaken: available }
+			});
+
+			shortages.push({
+				productName: item.productName,
+				variantLabel: item.variantLabel,
+				missing: item.quantity - available
+			});
+		}
+
+		const invoiceNumber = await nextInvoiceNumber(transaction);
+		const now = new Date();
+
+		const updated = await transaction.order.update({
+			where: { id: order.id },
+			data: {
+				status: 'PAID',
+				paymentStatus: 'PAID',
+				paidAt: now,
+				stripePaymentIntentId: paymentIntentId,
+				invoiceNumber,
+				invoicedAt: now,
+				needsAttention: shortages.length > 0,
+				attentionReason:
+					shortages.length > 0
+						? `Stock insuffisant a la confirmation : ${shortages
+								.map((entry) => `${entry.productName} (${entry.variantLabel}), -${entry.missing}`)
+								.join(' ; ')}`
+						: null
+			},
+			select: {
+				id: true,
+				reference: true,
+				contactEmail: true,
+				invoiceNumber: true,
+				totalCents: true,
+				currency: true
+			}
+		});
+
+		return { ...updated, shortages };
+	});
+}
+
+/**
+ * Remboursement constate cote Stripe : le stock repart en rayon, symetriquement
+ * au decrement de la confirmation. Idempotent, comme tout le traitement webhook.
+ */
+export async function markOrderRefunded(paymentIntentId: string) {
+	return prisma.$transaction(async (transaction) => {
+		const order = await transaction.order.findFirst({
+			where: { stripePaymentIntentId: paymentIntentId },
+			select: {
+				id: true,
+				paymentStatus: true,
+				items: { select: { variantId: true, stockTaken: true } }
+			}
+		});
+
+		if (!order || order.paymentStatus === 'REFUNDED') {
+			return null;
+		}
+
+		for (const item of order.items) {
+			if (item.variantId && item.stockTaken > 0) {
+				await transaction.productVariant.updateMany({
 					where: { id: item.variantId },
-					data: { stock: { decrement: item.quantity } }
+					data: { stock: { increment: item.stockTaken } }
 				});
 			}
 		}
@@ -156,12 +294,11 @@ export async function markOrderPaid(stripeSessionId: string, paymentIntentId: st
 		return transaction.order.update({
 			where: { id: order.id },
 			data: {
-				status: 'PAID',
-				paymentStatus: 'PAID',
-				paidAt: new Date(),
-				stripePaymentIntentId: paymentIntentId
+				status: 'REFUNDED',
+				paymentStatus: 'REFUNDED',
+				refundedAt: new Date()
 			},
-			select: { id: true, reference: true }
+			select: { id: true, reference: true, contactEmail: true, totalCents: true, currency: true }
 		});
 	});
 }
@@ -193,6 +330,14 @@ export function cancelUserOrder(userId: string, reference: string) {
 	});
 }
 
+/** Contexte minimal d'une commande pour composer un e-mail transactionnel. */
+export function findOrderMailContext(reference: string) {
+	return prisma.order.findUnique({
+		where: { reference },
+		select: { reference: true, contactEmail: true, totalCents: true, currency: true }
+	});
+}
+
 export function hasPurchasedProduct(userId: string, productId: string) {
 	return prisma.order.count({
 		where: {
@@ -211,17 +356,30 @@ export function updateOrderStatus(
 ) {
 	const now = new Date();
 
+	/** Expedier ou cloturer une commande signalee vaut traitement du signalement. */
+	const resolvesAttention =
+		status === 'SHIPPED' || status === 'DELIVERED' || status === 'CANCELLED';
+
 	return prisma.order.update({
 		where: { reference },
 		data: {
 			status,
 			trackingNumber,
+			needsAttention: resolvesAttention ? false : undefined,
+			attentionReason: resolvesAttention ? null : undefined,
 			shippedAt: status === 'SHIPPED' ? now : undefined,
 			deliveredAt: status === 'DELIVERED' ? now : undefined,
 			cancelledAt: status === 'CANCELLED' ? now : undefined,
 			refundedAt: status === 'REFUNDED' ? now : undefined,
 			paymentStatus: status === 'REFUNDED' ? 'REFUNDED' : undefined
 		},
-		select: { reference: true, status: true, trackingNumber: true }
+		select: {
+			reference: true,
+			status: true,
+			trackingNumber: true,
+			contactEmail: true,
+			totalCents: true,
+			currency: true
+		}
 	});
 }

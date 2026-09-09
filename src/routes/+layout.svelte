@@ -1,6 +1,7 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
+	import { ui } from '#lib/client/state/shop.svelte';
 	import CartDrawer from '#lib/client/ui/CartDrawer.svelte';
 	import MenuDrawer from '#lib/client/ui/MenuDrawer.svelte';
 	import PageError from '#lib/client/ui/PageError.svelte';
@@ -16,6 +17,13 @@
 	function onScroll() {
 		fuse = Math.max(0, Math.min(1, window.scrollY / 420));
 	}
+
+	/** Menu, panier et recherche se ferment a la touche Echap, comme attendu. */
+	function onKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') {
+			ui.closeAll();
+		}
+	}
 </script>
 
 <svelte:head>
@@ -28,9 +36,9 @@
 	/>
 </svelte:head>
 
-<svelte:window onscroll={onScroll} />
+<svelte:window onscroll={onScroll} onkeydown={onKeydown} />
 
-<div class="mx-auto flex min-h-screen max-w-[1440px] flex-col bg-cream">
+<div class="site-shell mx-auto flex min-h-screen max-w-[1440px] flex-col bg-cream">
 	<TopBar {fuse} signedIn={data.signedIn} isAdmin={data.isAdmin} />
 	<MenuDrawer signedIn={data.signedIn} />
 	<CartDrawer signedIn={data.signedIn} />

@@ -3,6 +3,7 @@
 	import Pagination from '#lib/client/ui/Pagination.svelte';
 	import ProductGrid from '#lib/client/ui/ProductGrid.svelte';
 	import SearchFilters from '#lib/client/ui/SearchFilters.svelte';
+	import SeoHead from '#lib/client/ui/SeoHead.svelte';
 	import {
 		filtersFromSearchParams,
 		searchParamsFromFilters
@@ -22,6 +23,23 @@
 	const results = $derived(await searchCatalogue(filters));
 	const facets = $derived(await getFacets(filters));
 
+	/**
+	 * Les combinaisons de filtres creent une infinite d'URL equivalentes : seule
+	 * la recherche par mot-cle reste indexable, le reste pointe vers la boutique.
+	 */
+	const isFiltered = $derived(
+		filters.categories.length > 0 ||
+			filters.attributes.length > 0 ||
+			filters.priceMinCents !== null ||
+			filters.priceMaxCents !== null ||
+			filters.inStockOnly ||
+			filters.sort !== 'pertinence' ||
+			filters.page > 1
+	);
+	const canonical = $derived(
+		`${page.url.origin}/search${filters.query ? `?query=${encodeURIComponent(filters.query)}` : ''}`
+	);
+
 	let panelOpen = $state(false);
 
 	/** Toute modification de filtre passe par l'URL, jamais par un etat local. */
@@ -37,13 +55,12 @@
 	}
 </script>
 
-<svelte:head>
-	<title>{filters.query ? `${filters.query} — recherche` : 'La boutique'} — BYLIKKI</title>
-	<meta
-		name="description"
-		content="Cherche parmi les créations faites main de l’atelier Bylikki."
-	/>
-</svelte:head>
+<SeoHead
+	title={filters.query ? `${filters.query} — recherche — BYLIKKI` : 'La boutique — BYLIKKI'}
+	description="Cherche parmi les créations faites main de l’atelier Bylikki."
+	{canonical}
+	noindex={isFiltered}
+/>
 
 <div class="px-5 pt-8 pb-16 lg:px-[70px] lg:pt-12 lg:pb-20">
 	<div class="mb-6 flex flex-col gap-2.5 lg:mb-9">

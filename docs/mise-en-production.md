@@ -1,9 +1,12 @@
 # État du site et checklist avant mise en production
 
-Dernière mise à jour : septembre 2026, après la livraison de l'espace d'administration.
+Dernière mise à jour : septembre 2026, après le chantier de mise en production (migrations,
+paiement, e-mails, factures, SEO, tests).
 
-Ce document décrit ce qui fonctionne, ce qui manque, et dans quel ordre s'y prendre. Il est
-volontairement franc : tout ce qui est marqué **bloquant** empêche une ouverture au public.
+**Ce qui reste strictement à ta charge est réuni dans `docs/a-completer.md`.** Ce document-ci
+décrit l'état technique du site.
+
+Il est volontairement franc : tout ce qui est marqué **bloquant** empêche une ouverture au public.
 
 ---
 
@@ -15,7 +18,9 @@ volontairement franc : tout ce qui est marqué **bloquant** empêche une ouvertu
 | Recherche      | Facettes, filtres par critère, tri, pagination, suggestions                      |
 | Comptes        | Connexion par code e-mail, sessions glissantes 30 j, rôles USER/ADMIN            |
 | Panier         | Persisté dans le navigateur, prix et stock recalculés côté serveur               |
-| Paiement       | Stripe Checkout hébergé, webhook de confirmation, décrément de stock             |
+| Paiement       | Stripe Checkout, webhook, décrément gardé, remboursements, factures numérotées   |
+| E-mails        | Connexion, confirmation, expédition, annulation, remboursement, alerte interne   |
+| SEO            | Sitemap, canoniques, Open Graph, JSON-LD Product / Organization                  |
 | Avis           | Dépôt avec photos, modération, note moyenne dénormalisée                         |
 | RGPD           | Export, rectification, effacement avec délai, consentements, sessions révocables |
 | Administration | Tableau de bord, produits, commandes, comptes, avis, catalogue                   |
@@ -23,84 +28,101 @@ volontairement franc : tout ce qui est marqué **bloquant** empêche une ouvertu
 Vérifié en conditions réelles sur une base PostgreSQL locale : parcours de connexion complet,
 ajout au panier avec personnalisation, création et suppression de produit depuis l'admin,
 modération d'avis, changement de rôle, contrôle d'accès (403 pour un compte USER sur `/admin`).
+Depuis, également vérifiés : la migration initiale sur une base neuve, l'encaissement avec stock
+insuffisant et son remboursement, la facture réservée à sa propriétaire, le sitemap, le JSON-LD
+sous CSP, et la tâche de purge (401 sans jeton, compte-rendu avec).
 
 ---
 
-## 2. Bloquants
+## 2. Bloquants restants
 
-### 2.1 Base de données : aucune migration
+Tous les bloquants techniques sont levés. Ceux qui subsistent demandent une information ou une
+décision de ta part, et sont détaillés dans `docs/a-completer.md` :
 
-`prisma/migrations` est vide, tout est passé par `bun db:push`. En production cela signifie
-qu'aucun changement de schéma n'est traçable ni réversible.
+1. **Secrets de production** — le site refuse désormais de démarrer si l'un d'eux manque
+   (`src/lib/server/utils/env.ts`, appelé depuis `hooks.server.ts`).
+2. **`bun db:deploy` sur la base de production**, puis passage du premier compte en `ADMIN`.
+3. **SIRET, adresse et hébergeur** dans `src/lib/client/data/seller.ts` et `legal.ts`.
+4. **Clés et webhook Stripe** en production.
+5. **SMTP et enregistrements SPF/DKIM/DMARC** — sans quoi personne ne peut se connecter.
 
-À faire : `bunx prisma migrate dev --name initial` sur une base propre, puis `migrate deploy`
-au déploiement. Ne plus jamais utiliser `db:push` sur la base de production.
+### Ce qui a été traité
 
-### 2.2 Variables d'environnement de production
-
-À créer et à ne jamais committer : `AUTH_SECRET` et `OTP_PEPPER` (32 octets aléatoires chacun,
-`openssl rand -base64 32`), `PRISMA_DATABASE_URL`, `SMTP_*`, `STRIPE_SECRET_KEY`,
-`STRIPE_WEBHOOK_SECRET`, `BLOB_READ_WRITE_TOKEN`, `PUBLIC_ORIGIN`.
-
-Attention : sans `AUTH_SECRET`, le code utilise en développement un secret de repli connu. Le
-code refuse de démarrer sans lui hors développement, mais il faut le vérifier au déploiement.
-
-### 2.3 Police manquante
-
-`src/routes/layout.css` déclare `Sabrina.woff2`, mais `static/fonts/` n'existe pas : chaque page
-déclenche un 404 et la police manuscrite retombe silencieusement sur Caveat (chargée depuis
-Google Fonts). Soit ajouter le fichier, soit retirer la déclaration.
-
-### 2.4 Mentions légales incomplètes
-
-`src/lib/client/data/legal.ts` contient `SIRET 000 000 000 00000` dans les CGU **et** dans les
-mentions légales. Le numéro réel, l'adresse de l'entreprise, le nom du responsable de publication
-et l'hébergeur sont obligatoires (art. 6 LCEN). À compléter avant toute vente.
-
-### 2.5 Aucun test
-
-Seuls les exemples d'échafaudage subsistent (`src/lib/vitest-examples/`). Vitest est configuré
-(projets `client` et `server`). Priorité minimale : le calcul du panier (`priceCartLines`), la
-vérification OTP (`verifyOtpCode`), et les gardes `requireUser` / `requireAdmin`.
+- **Migrations Prisma** : `prisma/migrations/0000_initial/` reconstruit le schéma complet depuis
+  une base vide. Vérifié en conditions réelles : `migrate deploy` sur une base neuve, puis
+  `migrate diff` contre le schéma, qui ne renvoie aucun écart. Scripts `bun db:migrate` et
+  `bun db:deploy` ajoutés ; `db:push` ne doit plus servir en production.
+- **Police manquante** : le `@font-face` de `Sabrina.woff2` a été retiré, ainsi que la famille en
+  tête de `--font-hand`. Plus aucun 404 sur les pages. Caveat assure le rendu manuscrit, comme
+  c'était déjà le cas en pratique.
+- **Tests** : 81 tests sur 9 fichiers, intégrés à `bun all` (`prepare → format → lint → check →
+test`). Ils couvrent le calcul du panier et ses cas limites (stock, personnalisation, prix
+  serveur), les gardes `requireUser` / `requireAdmin`, les empreintes HMAC et la comparaison à
+  temps constant, la facturation, les frais de port, la référence de commande, la normalisation
+  d'e-mail, la traduction Valibot → attributs HTML, et les schémas partagés. Les exemples
+  d'échafaudage ont été supprimés.
+- **Vérification des variables d'environnement** au démarrage, avec un message qui nomme les
+  variables absentes plutôt qu'une panne à la première commande.
 
 ---
 
 ## 3. SEO
 
-Rien n'est en place au-delà des `<title>` et de quelques descriptions.
+En place :
 
-- **Sitemap** : aucun. Ajouter `src/routes/sitemap.xml/+server.ts` listant les produits publiés,
-  les catégories et les pages légales.
-- **robots.txt** : autorise tout mais ne pointe aucun sitemap. Ajouter la ligne `Sitemap:`.
-- **Balises sociales** : aucune balise Open Graph ni Twitter Card. La première image produit ferait
-  une `og:image` naturelle.
-- **Données structurées** : pas de JSON-LD. `Product` (avec `offers`, `aggregateRating`) sur les
-  fiches et `Organization` sur l'accueil sont ceux qui comptent pour une boutique.
-- **Canoniques** : à ajouter, en particulier sur `/search` où les combinaisons de filtres créent
-  une infinité d'URL. Prévoir aussi `noindex` sur les pages de résultats filtrées.
-- **Pages indexables** : `/profile`, `/sign` et `/admin` sont déjà en `noindex`.
-- **Rendu** : les pages produit et recherche sont rendues côté serveur avec leur contenu complet,
-  ce qui est le point le plus important et il est acquis.
+- **Sitemap** : `src/routes/sitemap.xml/+server.ts` — accueil, boutique, catégories utilisées,
+  produits publiés avec leur `lastmod`, pages légales. Une heure de cache.
+- **robots.txt** : pointe le sitemap et exclut `/admin`, `/profile`, `/sign` et `/api`.
+- **Balises sociales** : composant `SeoHead.svelte` — titre, description, canonique, Open Graph
+  et Twitter Card. La première image produit sert d'aperçu.
+- **Données structurées** : JSON-LD `Product` (prix, devise, disponibilité, note moyenne) sur les
+  fiches, `Organization` et `WebSite` (avec `SearchAction`) sur l'accueil. Vérifié au navigateur :
+  le JSON est valide et **la CSP à nonces ne le bloque pas**.
+- **Canoniques** : sur toutes les pages publiques. `/search` pointe vers l'URL nue ou vers la
+  seule recherche par mot-clé, et passe en `noindex, follow` dès qu'un filtre, un tri ou une page
+  est actif — les combinaisons de facettes ne créent donc pas d'URL indexables en cascade.
+- **Rendu serveur** : les pages produit et recherche partent complètes dans le HTML.
+
+Reste : de vraies photos, sans quoi les aperçus sociaux resteront vides (`docs/a-completer.md` § 6).
 
 ---
 
-## 4. Commandes et e-mails
+## 4. Commandes, e-mails et factures
 
-- **Aucun e-mail transactionnel** hors code de connexion. `sendMail()` existe et n'est appelé que
-  par l'OTP. Manquent : confirmation de commande, avis d'expédition avec numéro de suivi,
-  confirmation d'annulation et de remboursement.
-- **Factures** : aucune génération. Obligatoire pour la conservation légale de 10 ans annoncée
-  dans les mentions.
-- **Remboursements** : le webhook Stripe traite `checkout.session.completed`,
-  `async_payment_succeeded`, `async_payment_failed` et `expired`. Il ne traite pas
-  `charge.refunded` : un remboursement fait depuis le tableau de bord Stripe ne se répercute pas
-  dans la base. À ajouter, avec réincrémentation du stock.
-- **Stock** : décrémenté à la confirmation de paiement, jamais réservé pendant le paiement. Sur une
-  pièce unique, deux clientes peuvent payer la même. Prévoir soit une réservation courte, soit une
-  vérification à la confirmation avec remboursement automatique en cas de conflit.
-- **Frais de port** : forfait unique de 4,90 € offert dès 60 € (`SHIPPING_FLAT_CENTS` dans
-  `order.ts`). À confronter aux tarifs réels, et à décliner par pays si la Belgique et la Suisse
-  restent ouvertes à la commande.
+- **E-mails transactionnels** : six gabarits écrits en Svelte avec `svelte-email-tailwind`, dans
+  `src/lib/server/emails/`, reprenant la charte de la boutique (crème, rose, contours à 2 px).
+  Chacun part en HTML avec une version texte dérivée du même rendu.
+
+  | Message                                 | Déclencheur                              |
+  | --------------------------------------- | ---------------------------------------- |
+  | Code de connexion                       | demande de code                          |
+  | Confirmation de commande + lien facture | webhook, après encaissement              |
+  | Avis d'expédition avec numéro de suivi  | passage en `SHIPPED` depuis l'admin      |
+  | Confirmation d'annulation               | annulation par la cliente ou par l'admin |
+  | Confirmation de remboursement           | webhook `charge.refunded`                |
+  | Alerte de survente (interne)            | stock insuffisant à la confirmation      |
+
+  Aucun de ces envois ne peut faire échouer un paiement : `sendMailQuietly()` journalise l'échec
+  au lieu de le propager. Le code de connexion, lui, garde le comportement strict.
+
+- **Factures** : numérotation continue et sans trou, attribuée dans la transaction de paiement
+  (modèle `Counter`), au format `BY-2026-000042`. Document imprimable sur
+  `/profile/commande/[reference]/facture`, réservé à la propriétaire de la commande — vérifié :
+  200 pour elle, 404 pour une autre cliente. Aucune dépendance PDF : impression navigateur.
+  La mention « TVA non applicable, art. 293 B du CGI » y figure.
+
+- **Remboursements** : `charge.refunded` est traité — statut, date, remise en rayon du stock et
+  e-mail à la cliente. Idempotent comme le reste du webhook.
+
+- **Survente** : le décrément est désormais **conditionnel** (`stock >= quantité`) à l'intérieur
+  de la transaction. En cas de conflit, la commande reste payée mais porte un drapeau
+  `needsAttention` avec le détail du manque, remonte en tête de `/admin/commandes`, et une
+  alerte part vers `ADMIN_ALERT_EMAIL`. Le champ `stockTaken` sur chaque ligne enregistre ce qui
+  a réellement été prélevé, de sorte qu'un remboursement ne remet en rayon que cette quantité —
+  et non la quantité commandée. Vérifié : stock 1, commande de 2 → 1 prélevé, manque signalé,
+  remboursement → stock 1.
+
+- **Frais de port** : toujours un forfait unique, à confronter au réel (`docs/a-completer.md` § 7).
 
 ---
 
@@ -173,34 +195,60 @@ d'exploitation restant.
 - Les jetons de session ne sont jamais stockés en clair : seule l'empreinte HMAC est en base.
 - Aucun secret n'est exposé au client (`$env/static/private` uniquement côté serveur).
 
+### Depuis l'audit
+
+- **Le schéma s'applique par migration** : `bun db:deploy` couvre `RateLimit` comme le reste.
+- **La purge est planifiée** : `vercel.json` déclare une tâche quotidienne vers
+  `/api/cron/retention`, protégée par `CRON_SECRET` comparé à temps constant. Vérifié : 401 sans
+  jeton, 401 avec un mauvais jeton, compte-rendu chiffré avec le bon.
+- **Les variables critiques sont contrôlées au démarrage** : le site refuse de démarrer plutôt
+  que de hacher avec le secret de repli de développement.
+- **La CSP a été vérifiée sur les nouvelles pages** : le JSON-LD passe sans violation, la facture
+  et le sitemap non plus.
+
 ### Reste à faire côté exploitation
 
-- **Appliquer le schéma** : le modèle `RateLimit` est nouveau, `bun db:push` est nécessaire avant
-  le déploiement.
-- **Planifier `runRetentionPurge()`** : la fonction existe mais aucun cron ne l'appelle. Sans elle,
-  les comptes dont la suppression a été demandée ne sont jamais effacés — ce qui contredit la
-  promesse faite dans l'interface.
-- **Sauvegardes et supervision** : sauvegarde de la base, alerte sur erreurs, rotation d'`AUTH_SECRET`.
+- **Sauvegardes** : les activer côté Neon et tester une restauration.
+- **Supervision** : alerte sur les erreurs serveur.
+- **Rotation d'`AUTH_SECRET`** en cas de doute — elle déconnecte toutes les sessions, ce qui est
+  le comportement voulu.
 
 ---
 
 ## 7. Contenu et accessibilité
 
-- Les visuels sont des `PhotoPlaceholder` hachurés : il faut de vraies photos, désormais
-  téléversables depuis `/admin/produits/[id]` (converties en WebP, EXIF supprimés).
-- Le logo est un placeholder en pointillés (`Logo.svelte`).
-- Textes alternatifs : saisissables à l'ajout d'image, à remplir systématiquement.
-- Parcours clavier et contrastes à vérifier sur la boutique, notamment les pastilles roses sur
+Traité :
+
+- **Textes alternatifs** : tous les `<img>` en portent un. Les vignettes décoratives ont un `alt`
+  vide, ce qui est le comportement correct — les lecteurs d'écran les ignorent au lieu de lire
+  une URL. Les vignettes cliquables de la galerie produit ont un `aria-label` et un
+  `aria-pressed` qui indique celle qui est affichée.
+- **Clavier** : `Échap` ferme le menu, le panier et la recherche.
+- **Impression** : la navigation, les tiroirs et le pied de page sont masqués — seule la facture
+  sort de l'imprimante.
+- Le tableau de bord fournit un équivalent textuel de ses graphiques.
+
+Reste :
+
+- Les visuels sont des `PhotoPlaceholder` hachurés et le logo un cadre en pointillés
+  (`docs/a-completer.md` § 6).
+- Contrastes à repasser une fois les vraies photos en place, notamment les pastilles roses sur
   fond crème.
-- Le tableau de bord fournit un équivalent textuel de ses graphiques pour les lecteurs d'écran.
 
 ---
 
 ## 8. Ordre conseillé
 
-1. Migrations Prisma, secrets de production, police manquante, mentions légales.
-2. Sécurité : `db:push` du modèle `RateLimit`, cron de purge, sauvegardes et supervision.
-3. E-mails transactionnels et factures.
-4. SEO : sitemap, Open Graph, JSON-LD, canoniques.
-5. Contenu réel (photos, logo) et tests sur les chemins critiques.
-6. Statistiques avancées, une fois la question du consentement tranchée.
+Il ne reste que des étapes qui te reviennent, dans cet ordre :
+
+1. Secrets de production, `bun db:deploy`, premier compte administrateur.
+2. Mentions légales : SIRET, adresse, hébergeur.
+3. Stripe (clés + webhook) et SMTP (compte + SPF/DKIM/DMARC), puis une commande de test de bout
+   en bout : paiement, e-mail de confirmation, facture, expédition, remboursement.
+4. Photos, logo, textes alternatifs.
+5. Tarifs de livraison confrontés au réel.
+6. Sauvegardes, supervision, et vérification que la tâche de purge tourne.
+7. Plus tard : mesure d'audience une fois la question du consentement tranchée, et réservation de
+   stock si les pièces uniques posent problème.
+
+Le détail de chaque point est dans `docs/a-completer.md`.
