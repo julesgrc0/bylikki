@@ -9,10 +9,12 @@
 	import RestockButton from '#lib/client/ui/RestockButton.svelte';
 	import ReviewForm from '#lib/client/ui/ReviewForm.svelte';
 	import ReviewList from '#lib/client/ui/ReviewList.svelte';
+	import ReviewSummary from '#lib/client/ui/ReviewSummary.svelte';
 	import SeoHead from '#lib/client/ui/SeoHead.svelte';
 	import VariantPicker from '#lib/client/ui/VariantPicker.svelte';
 	import WishlistHeart from '#lib/client/ui/WishlistHeart.svelte';
 	import { formatPrice } from '#lib/client/utils/money';
+	import { type ReviewSort } from '#lib/client/validation/review';
 	import { getProduct } from '#lib/remote/product.remote';
 	import { getProductReviews } from '#lib/remote/review.remote';
 	import { resolve } from '$app/paths';
@@ -23,7 +25,14 @@
 	 * Le rendu attend la fiche : le contenu part complet dans le HTML. Les deux
 	 * requetes partent ensemble pour ne pas s'enchainer en cascade.
 	 */
-	const loaded = $derived(await Promise.all([getProduct(slug), getProductReviews(slug)]));
+	const reviewFilters = $derived({
+		slug,
+		sort: (page.url.searchParams.get('avis') ?? 'utiles') as ReviewSort,
+		rating: Number(page.url.searchParams.get('note')) || null,
+		withPhotos: page.url.searchParams.get('photos') === '1',
+		verifiedOnly: page.url.searchParams.get('verifies') === '1'
+	});
+	const loaded = $derived(await Promise.all([getProduct(slug), getProductReviews(reviewFilters)]));
 	const detail = $derived(loaded[0]);
 	const feedback = $derived(loaded[1]);
 
@@ -298,10 +307,17 @@
 		</section>
 	{/if}
 
-	<section class="mt-12 flex flex-col gap-6">
+	<section id="avis" class="mt-12 flex flex-col gap-6">
 		<h2 class="m-0 text-[24px] font-semibold lg:text-[30px]">Les avis</h2>
+
+		<ReviewSummary slug={product.slug} breakdown={feedback.breakdown} />
+
 		<div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
-			<ReviewList reviews={feedback.reviews} />
+			<ReviewList
+				reviews={feedback.reviews}
+				votedReviewIds={feedback.votedReviewIds}
+				filters={reviewFilters}
+			/>
 			{#if feedback.canReview}
 				<ReviewForm productSlug={product.slug} />
 			{:else}

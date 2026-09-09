@@ -1,6 +1,6 @@
 import { error, invalid } from '@sveltejs/kit';
 import { reviewPhotosSchema } from '#lib/client/validation/media';
-import { reviewSchema } from '#lib/client/validation/review';
+import { reviewFiltersSchema, reviewSchema } from '#lib/client/validation/review';
 import { hasPurchasedProduct } from '#lib/server/database/order';
 import { findProductIdBySlug } from '#lib/server/database/product';
 import {
@@ -8,9 +8,12 @@ import {
 	detachReviewPhotos,
 	findReviewIdForUser,
 	findUserReview,
+	getReviewBreakdown,
 	listLatestPublishedReviews,
 	listPublishedReviews,
-	saveReview
+	listVotedReviewIds,
+	saveReview,
+	toggleReviewVote
 } from '#lib/server/database/review';
 import { getSessionUser, requireUser } from '#lib/server/security/guard';
 import { consumeRateLimit } from '#lib/server/security/rate-limit';
@@ -26,21 +29,47 @@ const reviewFormSchema = v.object({ ...reviewSchema.entries, photos: reviewPhoto
 
 export const getLatestReviews = query(async () => listLatestPublishedReviews());
 
-export const getProductReviews = query(slugSchema, async (slug) => {
-	const product = await findProductIdBySlug(slug);
+export const getProductReviews = query(reviewFiltersSchema, async (filters) => {
+	const product = await findProductIdBySlug(filters.slug);
 
 	if (!product) {
 		error(404, "Cette création n'existe pas ou n'est plus en ligne.");
 	}
 
 	const user = getSessionUser();
-	const [reviews, mine] = await Promise.all([
-		listPublishedReviews(product.id),
-		user ? findUserReview(user.id, product.id) : null
+	const [reviews, mine, breakdown, voted] = await Promise.all([
+		listPublishedReviews(product.id, {
+			sort: filters.sort,
+			rating: filters.rating,
+			withPhotos: filters.withPhotos,
+			verifiedOnly: filters.verifiedOnly
+		}),
+		user ? findUserReview(user.id, product.id) : null,
+		getReviewBreakdown(product.id),
+		user ? listVotedReviewIds(user.id, product.id) : []
 	]);
 
-	return { reviews, mine, canReview: user !== null };
+	return {
+		reviews,
+		mine,
+		breakdown,
+		votedReviewIds: voted.map((vote) => vote.reviewId),
+		canReview: user !== null
+	};
 });
+
+/** Un vote par personne et par avis, reversible. */
+export const voteReviewHelpful = command(
+	v.object({ reviewId: identifierSchema, filters: reviewFiltersSchema }),
+	async ({ reviewId, filters }) => {
+		const user = requireUser();
+		const result = await toggleReviewVote(user.id, reviewId);
+
+		await getProductReviews(filters).refresh();
+
+		return result;
+	}
+);
 
 /**
  * Un avis est publie apres moderation. L'achat n'est pas obligatoire pour
@@ -94,13 +123,22 @@ export const submitReview = form(reviewFormSchema, async (input, issue) => {
 		userId: user.id,
 		authorName: input.authorName,
 		rating: input.rating,
+		/** Zero signifie « non renseigne » cote formulaire. */
+		qualityRating: input.qualityRating === 0 ? null : input.qualityRating,
+		accuracyRating: input.accuracyRating === 0 ? null : input.accuracyRating,
 		title: input.title === '' ? null : input.title,
 		body: input.body,
 		verifiedPurchase: purchases > 0,
 		photos: uploaded
 	});
 
-	await getProductReviews(input.productSlug).refresh();
+	await getProductReviews({
+		slug: input.productSlug,
+		sort: 'utiles',
+		rating: null,
+		withPhotos: false,
+		verifiedOnly: false
+	}).refresh();
 
 	return { submitted: true };
 });
@@ -116,7 +154,13 @@ export const deleteMyReview = command(
 		}
 
 		await Promise.all(removedPhotos.map(deleteImage));
-		await getProductReviews(productSlug).refresh();
+		await getProductReviews({
+			slug: productSlug,
+			sort: 'utiles',
+			rating: null,
+			withPhotos: false,
+			verifiedOnly: false
+		}).refresh();
 
 		return { deleted: true };
 	}

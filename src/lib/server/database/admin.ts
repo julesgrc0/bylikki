@@ -444,6 +444,9 @@ export function listAdminReviews(status: 'PENDING' | 'PUBLISHED' | 'REJECTED') {
 			status: true,
 			verifiedPurchase: true,
 			createdAt: true,
+			replyBody: true,
+			repliedAt: true,
+			helpfulCount: true,
 			photos: { select: { id: true, url: true } },
 			product: { select: { name: true, slug: true } }
 		}

@@ -307,6 +307,11 @@ CREATE TABLE "Review" (
     "rating" INTEGER NOT NULL,
     "title" TEXT,
     "body" TEXT NOT NULL,
+    "qualityRating" INTEGER,
+    "accuracyRating" INTEGER,
+    "replyBody" TEXT,
+    "repliedAt" TIMESTAMP(3),
+    "helpfulCount" INTEGER NOT NULL DEFAULT 0,
     "status" "ReviewStatus" NOT NULL DEFAULT 'PENDING',
     "verifiedPurchase" BOOLEAN NOT NULL DEFAULT false,
     "publishedAt" TIMESTAMP(3),
@@ -314,6 +319,16 @@ CREATE TABLE "Review" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Review_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ReviewVote" (
+    "id" TEXT NOT NULL,
+    "reviewId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ReviewVote_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -530,10 +545,22 @@ CREATE INDEX "OrderItem_productId_idx" ON "OrderItem"("productId");
 CREATE INDEX "Review_productId_status_createdAt_idx" ON "Review"("productId", "status", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "Review_productId_status_helpfulCount_idx" ON "Review"("productId", "status", "helpfulCount");
+
+-- CreateIndex
+CREATE INDEX "Review_productId_status_rating_idx" ON "Review"("productId", "status", "rating");
+
+-- CreateIndex
 CREATE INDEX "Review_userId_idx" ON "Review"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Review_productId_userId_key" ON "Review"("productId", "userId");
+
+-- CreateIndex
+CREATE INDEX "ReviewVote_userId_idx" ON "ReviewVote"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ReviewVote_reviewId_userId_key" ON "ReviewVote"("reviewId", "userId");
 
 -- CreateIndex
 CREATE INDEX "ReviewPhoto_reviewId_position_idx" ON "ReviewPhoto"("reviewId", "position");
@@ -615,6 +642,12 @@ ALTER TABLE "Review" ADD CONSTRAINT "Review_productId_fkey" FOREIGN KEY ("produc
 
 -- AddForeignKey
 ALTER TABLE "Review" ADD CONSTRAINT "Review_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReviewVote" ADD CONSTRAINT "ReviewVote_reviewId_fkey" FOREIGN KEY ("reviewId") REFERENCES "Review"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReviewVote" ADD CONSTRAINT "ReviewVote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ReviewPhoto" ADD CONSTRAINT "ReviewPhoto_reviewId_fkey" FOREIGN KEY ("reviewId") REFERENCES "Review"("id") ON DELETE CASCADE ON UPDATE CASCADE;

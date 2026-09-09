@@ -4,9 +4,14 @@ const reviewSelect = {
 	id: true,
 	authorName: true,
 	rating: true,
+	qualityRating: true,
+	accuracyRating: true,
 	title: true,
 	body: true,
 	verifiedPurchase: true,
+	replyBody: true,
+	repliedAt: true,
+	helpfulCount: true,
 	createdAt: true,
 	publishedAt: true,
 	photos: {
@@ -18,12 +23,126 @@ const reviewSelect = {
 
 export type ProductReview = Awaited<ReturnType<typeof listPublishedReviews>>[number];
 
-export function listPublishedReviews(productId: string, limit = 20) {
+export type ReviewSort = 'recents' | 'utiles' | 'meilleurs' | 'severes';
+
+export type ReviewFilters = {
+	sort: ReviewSort;
+	rating: number | null;
+	withPhotos: boolean;
+	verifiedOnly: boolean;
+};
+
+const reviewOrder = {
+	recents: [{ createdAt: 'desc' }],
+	utiles: [{ helpfulCount: 'desc' }, { createdAt: 'desc' }],
+	meilleurs: [{ rating: 'desc' }, { helpfulCount: 'desc' }],
+	severes: [{ rating: 'asc' }, { helpfulCount: 'desc' }]
+} as const;
+
+export function listPublishedReviews(
+	productId: string,
+	filters: ReviewFilters = { sort: 'utiles', rating: null, withPhotos: false, verifiedOnly: false },
+	limit = 20
+) {
 	return prisma.review.findMany({
-		where: { productId, status: 'PUBLISHED' },
-		orderBy: { createdAt: 'desc' },
+		where: {
+			productId,
+			status: 'PUBLISHED',
+			...(filters.rating === null ? {} : { rating: filters.rating }),
+			...(filters.withPhotos ? { photos: { some: {} } } : {}),
+			...(filters.verifiedOnly ? { verifiedPurchase: true } : {})
+		},
+		orderBy: [...reviewOrder[filters.sort]],
 		take: limit,
 		select: reviewSelect
+	});
+}
+
+/**
+ * Repartition des notes et moyennes par critere : ce que la note globale seule
+ * ne dit pas. Un 4,2 fait de 4 et de 5 ne raconte pas la meme histoire qu'un
+ * 4,2 fait de 2 et de 5.
+ */
+export async function getReviewBreakdown(productId: string) {
+	const [byRating, averages] = await Promise.all([
+		prisma.review.groupBy({
+			by: ['rating'],
+			where: { productId, status: 'PUBLISHED' },
+			_count: { _all: true }
+		}),
+		prisma.review.aggregate({
+			where: { productId, status: 'PUBLISHED' },
+			_avg: { rating: true, qualityRating: true, accuracyRating: true },
+			_count: { _all: true }
+		})
+	]);
+
+	const counts = new Map(byRating.map((entry) => [entry.rating, entry._count._all]));
+	const total = averages._count._all;
+
+	return {
+		total,
+		average: averages._avg.rating ?? 0,
+		quality: averages._avg.qualityRating,
+		accuracy: averages._avg.accuracyRating,
+		/** Toujours cinq lignes, y compris les notes que personne n'a donnees. */
+		distribution: [5, 4, 3, 2, 1].map((rating) => {
+			const count = counts.get(rating) ?? 0;
+
+			return { rating, count, share: total === 0 ? 0 : Math.round((count / total) * 100) };
+		})
+	};
+}
+
+/** Avis deja votes utiles par la personne connectee, pour griser le bouton. */
+export function listVotedReviewIds(userId: string, productId: string) {
+	return prisma.reviewVote.findMany({
+		where: { userId, review: { productId } },
+		select: { reviewId: true }
+	});
+}
+
+/**
+ * Le vote et le compteur denormalise sont ecrits ensemble : le compteur ne
+ * peut donc pas deriver de la realite des lignes de vote.
+ */
+export async function toggleReviewVote(userId: string, reviewId: string) {
+	const existing = await prisma.reviewVote.findUnique({
+		where: { reviewId_userId: { reviewId, userId } },
+		select: { id: true }
+	});
+
+	if (existing) {
+		await prisma.$transaction([
+			prisma.reviewVote.delete({ where: { id: existing.id } }),
+			prisma.review.update({
+				where: { id: reviewId },
+				data: { helpfulCount: { decrement: 1 } }
+			})
+		]);
+
+		return { voted: false };
+	}
+
+	await prisma.$transaction([
+		prisma.reviewVote.create({ data: { reviewId, userId } }),
+		prisma.review.update({ where: { id: reviewId }, data: { helpfulCount: { increment: 1 } } })
+	]);
+
+	return { voted: true };
+}
+
+/** Reponse publique de la boutique. Une chaine vide retire la reponse. */
+export function replyToReview(reviewId: string, body: string) {
+	const trimmed = body.trim();
+
+	return prisma.review.update({
+		where: { id: reviewId },
+		data: {
+			replyBody: trimmed === '' ? null : trimmed,
+			repliedAt: trimmed === '' ? null : new Date()
+		},
+		select: { id: true, replyBody: true, repliedAt: true }
 	});
 }
 
@@ -48,6 +167,8 @@ export async function saveReview(input: {
 	userId: string;
 	authorName: string;
 	rating: number;
+	qualityRating: number | null;
+	accuracyRating: number | null;
 	title: string | null;
 	body: string;
 	verifiedPurchase: boolean;

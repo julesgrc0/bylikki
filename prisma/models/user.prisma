@@ -18,6 +18,7 @@ model User {
 
   wishlist      WishlistItem[]
   restockAlerts RestockAlert[]
+  reviewVotes   ReviewVote[]
 
   lastSeenAt          DateTime?
   deletionRequestedAt DateTime?

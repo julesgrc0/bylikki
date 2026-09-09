@@ -12,6 +12,22 @@
 	const instance = $derived(submitReview.for(productSlug));
 
 	let rating = $state(5);
+	/** Zero = non renseigne : ces deux notes restent facultatives. */
+	let qualityRating = $state(0);
+	let accuracyRating = $state(0);
+
+	const criteria = $derived([
+		{
+			label: 'Qualité de la finition',
+			value: qualityRating,
+			set: (value: number) => (qualityRating = qualityRating === value ? 0 : value)
+		},
+		{
+			label: 'Conforme à la photo',
+			value: accuracyRating,
+			set: (value: number) => (accuracyRating = accuracyRating === value ? 0 : value)
+		}
+	]);
 </script>
 
 <form
@@ -43,6 +59,33 @@
 		</div>
 		{#each instance.fields.rating.issues() ?? [] as issue (issue.message)}
 			<span class="text-[13px] font-semibold text-pink-deep">{issue.message}</span>
+		{/each}
+	</div>
+
+	<input {...instance.fields.qualityRating.as('hidden', qualityRating)} />
+	<input {...instance.fields.accuracyRating.as('hidden', accuracyRating)} />
+
+	<div class="flex flex-col gap-2.5">
+		<span class="text-[13px] font-semibold">Dans le détail (facultatif)</span>
+		{#each criteria as criterion (criterion.label)}
+			<div class="flex flex-wrap items-center justify-between gap-2">
+				<span class="text-[13.5px] text-ink/75">{criterion.label}</span>
+				<div class="flex gap-1">
+					{#each [1, 2, 3, 4, 5] as value (value)}
+						<button
+							type="button"
+							onclick={() => criterion.set(value)}
+							aria-label={`${criterion.label} : ${value} étoile${value > 1 ? 's' : ''}`}
+							aria-pressed={criterion.value === value}
+							class="cursor-pointer text-[19px] leading-none {criterion.value >= value
+								? 'text-pink'
+								: 'text-ink/25'}"
+						>
+							★
+						</button>
+					{/each}
+				</div>
+			</div>
 		{/each}
 	</div>
 

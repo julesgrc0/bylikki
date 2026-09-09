@@ -1,4 +1,5 @@
 import { error, invalid } from '@sveltejs/kit';
+import { reviewReplySchema } from '#lib/client/validation/review';
 import {
 	addProductImage,
 	countAdmins,
@@ -31,7 +32,7 @@ import {
 	updateProduct as updateProductRecord
 } from '#lib/server/database/catalog-admin';
 import { updateOrderStatus } from '#lib/server/database/order';
-import { moderateReview } from '#lib/server/database/review';
+import { moderateReview, replyToReview } from '#lib/server/database/review';
 import { purgeUserAccount } from '#lib/server/database/user';
 import { requireAdmin } from '#lib/server/security/guard';
 import { deleteImage, isBlobConfigured, uploadImage } from '#lib/server/utils/blob';
@@ -354,6 +355,16 @@ export const getAdminReviews = query(reviewStatusFilterSchema, async (status) =>
 	requireAdmin();
 
 	return listAdminReviews(status);
+});
+
+export const answerReview = command(reviewReplySchema, async ({ reviewId, body }) => {
+	requireAdmin();
+
+	const updated = await replyToReview(reviewId, body);
+	await getAdminReviews('PUBLISHED').refresh();
+	await getAdminReviews('PENDING').refresh();
+
+	return updated;
 });
 
 export const setReviewStatus = command(reviewModerationSchema, async ({ reviewId, status }) => {

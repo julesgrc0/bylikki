@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { Badge } from '#lib/client/ui/shadcn/badge';
 	import { Button } from '#lib/client/ui/shadcn/button';
-	import { getAdminReviews, setReviewStatus } from '#lib/remote/admin.remote';
+	import { Label } from '#lib/client/ui/shadcn/label';
+	import { Textarea } from '#lib/client/ui/shadcn/textarea';
+	import { toMessage } from '#lib/client/utils/errors';
+	import { answerReview, getAdminReviews, setReviewStatus } from '#lib/remote/admin.remote';
 	import { resolve } from '$app/paths';
 
 	const statuses = ['PENDING', 'PUBLISHED', 'REJECTED'] as const;
@@ -17,6 +20,24 @@
 	const dateFormatter = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
 
 	let pending = $state('');
+	let feedback = $state('');
+	/** Brouillons de reponse, un par avis, avant enregistrement. */
+	const replies = $state<Record<string, string>>({});
+
+	async function reply(reviewId: string, body: string) {
+		pending = reviewId;
+		feedback = '';
+
+		try {
+			await answerReview({ reviewId, body });
+			await getAdminReviews(status).refresh();
+			feedback = body.trim() === '' ? 'Réponse retirée.' : 'Réponse publiée.';
+		} catch (error) {
+			feedback = toMessage(error, "La réponse n'a pas pu être enregistrée.");
+		} finally {
+			pending = '';
+		}
+	}
 
 	async function moderate(reviewId: string, next: 'PUBLISHED' | 'REJECTED') {
 		pending = reviewId;
@@ -34,9 +55,14 @@
 	<div>
 		<h1 class="text-2xl font-semibold tracking-tight">Avis</h1>
 		<p class="text-sm text-muted-foreground">
-			Un avis n’apparaît sur la fiche produit qu’une fois publié ici.
+			Un avis n’apparaît sur la fiche produit qu’une fois publié ici. Une réponse de l’atelier
+			s’affiche sous l’avis, publiquement.
 		</p>
 	</div>
+
+	{#if feedback}
+		<p class="text-sm font-medium">{feedback}</p>
+	{/if}
 
 	<div class="flex gap-2">
 		{#each statuses as entry (entry)}
@@ -86,6 +112,28 @@
 							{/each}
 						</div>
 					{/if}
+
+					<div class="flex flex-col gap-2 rounded-lg border bg-muted/40 p-3">
+						<Label for="reply-{review.id}" class="text-xs">
+							Réponse de l'atelier{review.repliedAt ? ' (publiée)' : ''}
+						</Label>
+						<Textarea
+							id="reply-{review.id}"
+							rows={2}
+							maxlength={1200}
+							value={replies[review.id] ?? review.replyBody ?? ''}
+							oninput={(event) => (replies[review.id] = event.currentTarget.value)}
+						/>
+						<Button
+							size="sm"
+							variant="secondary"
+							class="self-start"
+							disabled={pending === review.id}
+							onclick={() => reply(review.id, replies[review.id] ?? review.replyBody ?? '')}
+						>
+							{review.replyBody ? 'Mettre à jour la réponse' : 'Répondre'}
+						</Button>
+					</div>
 
 					<div class="flex gap-2">
 						{#if review.status !== 'PUBLISHED'}
