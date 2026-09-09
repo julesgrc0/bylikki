@@ -273,6 +273,25 @@ CREATE TABLE "LoyaltyTier" (
 );
 
 -- CreateTable
+CREATE TABLE "DailyMetric" (
+    "date" TIMESTAMP(3) NOT NULL,
+    "key" TEXT NOT NULL,
+    "value" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "DailyMetric_pkey" PRIMARY KEY ("date","key")
+);
+
+-- CreateTable
+CREATE TABLE "SearchMiss" (
+    "term" TEXT NOT NULL,
+    "count" INTEGER NOT NULL DEFAULT 1,
+    "lastSeenAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SearchMiss_pkey" PRIMARY KEY ("term")
+);
+
+-- CreateTable
 CREATE TABLE "NewsletterIssue" (
     "id" TEXT NOT NULL,
     "subject" TEXT NOT NULL,
@@ -586,6 +605,12 @@ CREATE UNIQUE INDEX "LoyaltyTier_thresholdCents_key" ON "LoyaltyTier"("threshold
 
 -- CreateIndex
 CREATE INDEX "LoyaltyTier_position_idx" ON "LoyaltyTier"("position");
+
+-- CreateIndex
+CREATE INDEX "DailyMetric_key_date_idx" ON "DailyMetric"("key", "date");
+
+-- CreateIndex
+CREATE INDEX "SearchMiss_count_idx" ON "SearchMiss"("count");
 
 -- CreateIndex
 CREATE INDEX "NewsletterIssue_sentAt_idx" ON "NewsletterIssue"("sentAt");

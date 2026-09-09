@@ -1,4 +1,5 @@
 <script lang="ts">
+	import FunnelChart from '#lib/client/ui/admin/FunnelChart.svelte';
 	import TrendChart from '#lib/client/ui/admin/TrendChart.svelte';
 	import { Badge } from '#lib/client/ui/shadcn/badge';
 	import { Button } from '#lib/client/ui/shadcn/button';
@@ -82,6 +83,59 @@
 	</div>
 
 	<div class="grid gap-4 lg:grid-cols-2">
+		<Card>
+			<CardHeader>
+				<CardTitle>Parcours d’achat</CardTitle>
+				<CardDescription>
+					30 derniers jours. Mesure agrégée, sans cookie ni identifiant.
+				</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<FunnelChart steps={stats.funnel.steps} conversion={stats.funnel.conversion} />
+			</CardContent>
+		</Card>
+
+		<Card>
+			<CardHeader>
+				<CardTitle>Recherches sans résultat</CardTitle>
+				<CardDescription>Ce que les visiteuses cherchent et ne trouvent pas.</CardDescription>
+			</CardHeader>
+			<CardContent>
+				{#if stats.searchMisses.length === 0}
+					<p class="text-sm text-muted-foreground">
+						Aucune recherche restée sans résultat sur la période.
+					</p>
+				{:else}
+					<ul class="m-0 flex list-none flex-col gap-1.5 p-0 text-sm">
+						{#each stats.searchMisses as miss (miss.term)}
+							<li class="flex items-baseline justify-between gap-3">
+								<span class="truncate">{miss.term}</span>
+								<span class="shrink-0 text-muted-foreground tabular-nums">
+									{numberFormatter.format(miss.count)}
+								</span>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</CardContent>
+		</Card>
+	</div>
+
+	<div class="grid gap-4 lg:grid-cols-2">
+		<Card>
+			<CardHeader>
+				<CardTitle>Fiches vues</CardTitle>
+				<CardDescription>Consultations de fiches produit, par jour</CardDescription>
+			</CardHeader>
+			<CardContent>
+				<TrendChart
+					title="Fiches vues par jour"
+					points={stats.views}
+					format={(value) => numberFormatter.format(value)}
+				/>
+			</CardContent>
+		</Card>
+
 		<Card>
 			<CardHeader>
 				<CardTitle>Chiffre d’affaires</CardTitle>

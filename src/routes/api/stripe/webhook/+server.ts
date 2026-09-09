@@ -1,4 +1,5 @@
 import { error, json, type RequestHandler } from '@sveltejs/kit';
+import { countEvent } from '#lib/server/database/metrics';
 import {
 	markOrderPaid,
 	markOrderPaymentFailed,
@@ -20,6 +21,8 @@ function publicOrigin(requestOrigin: string) {
 }
 
 async function announcePaidOrder(order: PaidOrder, origin: string) {
+	void countEvent('order_paid');
+
 	await sendMailQuietly({
 		to: order.contactEmail,
 		...buildOrderConfirmationMail({

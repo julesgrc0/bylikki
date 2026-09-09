@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import { cartLineSchema, checkoutSchema } from '#lib/client/validation/cart';
 import { priceCartLines } from '#lib/server/database/cart';
 import { findDiscountQuota } from '#lib/server/database/discount';
+import { countEvent } from '#lib/server/database/metrics';
 import {
 	attachStripeSession,
 	cancelUserOrder,
@@ -82,6 +83,8 @@ export const startCheckout = command(checkoutSchema, async ({ addressId, lines, 
 	if (!quota.allowed) {
 		error(429, 'Trop de tentatives de paiement. Reviens dans une heure.');
 	}
+
+	void countEvent('checkout_start');
 
 	/** Mode vacances : la boutique reste consultable, l'encaissement est suspendu. */
 	const vacation = await getSetting('vacation');

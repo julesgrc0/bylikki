@@ -1,0 +1,23 @@
+/// Compteur agrege par jour. Aucun identifiant, aucun cookie, aucune donnee
+/// personnelle : uniquement des totaux, ce qui place la mesure hors du champ
+/// du consentement au sens de la recommandation CNIL sur la mesure d'audience.
+model DailyMetric {
+  date  DateTime
+  key   String
+  value Int      @default(0)
+
+  @@id([date, key])
+  @@index([key, date])
+}
+
+/// Recherches restees sans resultat : le texte saisi, jamais qui l'a saisi.
+/// C'est la mesure la plus actionnable pour une petite boutique — ce que les
+/// gens cherchent et ne trouvent pas.
+model SearchMiss {
+  term  String   @id
+  count Int      @default(1)
+  lastSeenAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@index([count])
+}

@@ -126,7 +126,7 @@ export const legalDocs: LegalDoc[] = [
 			},
 			{
 				h: 'Mesure d’audience',
-				p: 'Statistiques anonymes de fréquentation, sans identifiant publicitaire ni revente. Désactivable depuis le bandeau ou tes paramètres.'
+				p: 'Nous comptons des événements, jamais des personnes : nombre de fiches vues, d’ajouts au panier, de paiements lancés et de commandes payées, plus les recherches restées sans résultat. Ces compteurs sont des totaux par jour, sans identifiant, sans cookie et sans adresse IP — il n’existe donc rien qui puisse être rattaché à toi, et rien à désactiver. Aucun outil de mesure tiers n’est chargé.'
 			},
 			{
 				h: 'Aucune publicité',

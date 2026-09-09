@@ -15,6 +15,7 @@
 	import WishlistHeart from '#lib/client/ui/WishlistHeart.svelte';
 	import { formatPrice } from '#lib/client/utils/money';
 	import { type ReviewSort } from '#lib/client/validation/review';
+	import { trackCartAdd } from '#lib/remote/metrics.remote';
 	import { getProduct } from '#lib/remote/product.remote';
 	import { getProductReviews } from '#lib/remote/review.remote';
 	import { resolve } from '$app/paths';
@@ -244,6 +245,8 @@
 						}
 
 						addError = '';
+						/** Signal de mesure agrege : il ne bloque pas l'ajout au panier. */
+						void trackCartAdd();
 						cart.add({
 							variantId: variant.id,
 							productSlug: product.slug,

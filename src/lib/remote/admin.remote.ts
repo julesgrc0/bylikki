@@ -31,6 +31,7 @@ import {
 	setProductStatus,
 	updateProduct as updateProductRecord
 } from '#lib/server/database/catalog-admin';
+import { getDailySeries, getFunnel, listSearchMisses } from '#lib/server/database/metrics';
 import { updateOrderStatus } from '#lib/server/database/order';
 import { moderateReview, replyToReview } from '#lib/server/database/review';
 import { purgeUserAccount } from '#lib/server/database/user';
@@ -76,9 +77,15 @@ const identifierSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(64));
 export const getStats = query(async () => {
 	requireAdmin();
 
-	const [stats, topProducts] = await Promise.all([getDashboardStats(), getTopProducts()]);
+	const [stats, topProducts, funnel, searchMisses, views] = await Promise.all([
+		getDashboardStats(),
+		getTopProducts(),
+		getFunnel(),
+		listSearchMisses(),
+		getDailySeries('product_view')
+	]);
 
-	return { ...stats, topProducts };
+	return { ...stats, topProducts, funnel, searchMisses, views };
 });
 
 /* ------------------------------------------------------------------ produits */

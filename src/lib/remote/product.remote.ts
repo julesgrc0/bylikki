@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { searchFiltersSchema, suggestionSchema } from '#lib/client/validation/search';
+import { countEvent, recordSearchMiss } from '#lib/server/database/metrics';
 import {
 	findProductBySlug,
 	getSearchFacets,
@@ -27,12 +28,26 @@ export const getProduct = query(slugSchema, async (slug) => {
 		product.categories.map((category) => category.slug)
 	);
 
+	/** Mesure agregee, sans identifiant : elle n'attend pas la reponse. */
+	void countEvent('product_view');
+
 	return { product, related };
 });
 
-export const searchCatalogue = query(searchFiltersSchema, async (filters) =>
-	searchProducts(filters)
-);
+export const searchCatalogue = query(searchFiltersSchema, async (filters) => {
+	const results = await searchProducts(filters);
+
+	if (filters.query !== '') {
+		void countEvent('search');
+
+		/** Une recherche sans resultat dit ce qui manque au catalogue. */
+		if (results.items.length === 0) {
+			void recordSearchMiss(filters.query);
+		}
+	}
+
+	return results;
+});
 
 export const getFacets = query(searchFiltersSchema, async (filters) => getSearchFacets(filters));
 
