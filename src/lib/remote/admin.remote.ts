@@ -1,4 +1,5 @@
 import { error, invalid } from '@sveltejs/kit';
+import { returnDecisionSchema } from '#lib/client/validation/returns';
 import { reviewReplySchema } from '#lib/client/validation/review';
 import {
 	addProductImage,
@@ -33,13 +34,16 @@ import {
 } from '#lib/server/database/catalog-admin';
 import { getDailySeries, getFunnel, listSearchMisses } from '#lib/server/database/metrics';
 import { updateOrderStatus } from '#lib/server/database/order';
+import { decideReturn, listReturnRequests } from '#lib/server/database/returns';
 import { moderateReview, replyToReview } from '#lib/server/database/review';
 import { purgeUserAccount } from '#lib/server/database/user';
+import ReturnDecisionEmail from '#lib/server/emails/ReturnDecision.svelte';
 import { requireAdmin } from '#lib/server/security/guard';
 import { deleteImage, isBlobConfigured, uploadImage } from '#lib/server/utils/blob';
 import {
 	buildCancellationMail,
 	buildShippingMail,
+	renderEmail,
 	sendMailQuietly
 } from '#lib/server/utils/mailer';
 import { notifyRestock } from '#lib/server/utils/notifications';
@@ -355,6 +359,45 @@ export const deleteUserAccount = command(identifierSchema, async (userId) => {
 
 	return { deleted: true };
 });
+
+/* ------------------------------------------------------------------- retours */
+
+export const getReturns = query(
+	v.picklist(['ALL', 'REQUESTED', 'ACCEPTED', 'REFUSED', 'RECEIVED', 'REFUNDED']),
+	async (status) => {
+		requireAdmin();
+
+		return listReturnRequests(status);
+	}
+);
+
+export const decideReturnRequest = command(
+	returnDecisionSchema,
+	async ({ returnId, status, decisionNote }) => {
+		requireAdmin();
+
+		const updated = await decideReturn(returnId, status, decisionNote);
+
+		/** La cliente est prevenue de la decision, pas des etapes internes. */
+		if (status === 'ACCEPTED' || status === 'REFUSED') {
+			await sendMailQuietly({
+				to: updated.order.contactEmail,
+				subject: `Ta demande de retour — ${updated.order.reference}`,
+				...renderEmail(ReturnDecisionEmail, {
+					reference: updated.order.reference,
+					accepted: status === 'ACCEPTED',
+					note: updated.decisionNote,
+					origin: getRequestEvent().url.origin
+				})
+			});
+		}
+
+		await getReturns('ALL').refresh();
+		await getReturns('REQUESTED').refresh();
+
+		return updated;
+	}
+);
 
 /* ---------------------------------------------------------------------- avis */
 

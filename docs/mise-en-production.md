@@ -27,6 +27,7 @@ Il est volontairement franc : tout ce qui est marqué **bloquant** empêche une 
 | Administration | Tableau de bord, produits, commandes, comptes, avis, catalogue, paramètres       |
 | Atelier        | Création d'un bijou au glisser-déposer et au clavier, prix serveur, partage      |
 | Fidélisation   | Liste d'envies, alertes de réassort, newsletter, codes de réduction, paliers     |
+| Après-vente    | Suivi sans compte, demandes de retour avec les règles des CGV appliquées         |
 | Mesure         | Entonnoir d'achat et recherches sans résultat, agrégés, sans cookie              |
 
 Vérifié en conditions réelles sur une base PostgreSQL locale : parcours de connexion complet,

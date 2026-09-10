@@ -3,6 +3,7 @@
 	import LayoutDashboardIcon from '@lucide/svelte/icons/layout-dashboard';
 	import MailIcon from '@lucide/svelte/icons/mail';
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
+	import PackageIcon from '@lucide/svelte/icons/package';
 	import ReceiptIcon from '@lucide/svelte/icons/receipt';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 	import StoreIcon from '@lucide/svelte/icons/store';
@@ -19,6 +20,7 @@
 		{ href: resolve('/admin'), label: 'Tableau de bord', icon: LayoutDashboardIcon, exact: true },
 		{ href: resolve('/admin/produits'), label: 'Produits', icon: BoxIcon, exact: false },
 		{ href: resolve('/admin/commandes'), label: 'Commandes', icon: ReceiptIcon, exact: false },
+		{ href: resolve('/admin/retours'), label: 'Retours', icon: PackageIcon, exact: false },
 		{ href: resolve('/admin/comptes'), label: 'Comptes', icon: UsersIcon, exact: false },
 		{ href: resolve('/admin/avis'), label: 'Avis', icon: MessageSquareIcon, exact: false },
 		{ href: resolve('/admin/catalogue'), label: 'Catalogue', icon: TagsIcon, exact: false },

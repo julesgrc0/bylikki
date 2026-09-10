@@ -49,7 +49,8 @@ model Order {
   needsAttention  Boolean @default(false)
   attentionReason String?
 
-  items OrderItem[]
+  items   OrderItem[]
+  returns ReturnRequest[]
 
   /// Rappel d'avis envoye une seule fois, quelques jours apres la livraison
   reviewReminderSentAt DateTime?
@@ -97,6 +98,8 @@ model OrderItem {
 
   /// Options de personnalisation choisies : [{ key, label, value, priceDeltaCents }]
   customization Json?
+
+  returnItems ReturnRequestItem[]
 
   /// Creation de l'atelier, s'il y en a une : c'est ce que l'atelier fabrique
   customDesignId String?

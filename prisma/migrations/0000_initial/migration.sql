@@ -37,6 +37,12 @@ CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'AUTHORIZED', 'PAID', 'FAILED', 
 -- CreateEnum
 CREATE TYPE "ReviewStatus" AS ENUM ('PENDING', 'PUBLISHED', 'REJECTED');
 
+-- CreateEnum
+CREATE TYPE "ReturnStatus" AS ENUM ('REQUESTED', 'ACCEPTED', 'REFUSED', 'RECEIVED', 'REFUNDED');
+
+-- CreateEnum
+CREATE TYPE "ReturnReason" AS ENUM ('CHANGE_OF_MIND', 'DEFECT', 'WRONG_ITEM', 'SIZE');
+
 -- CreateTable
 CREATE TABLE "Component" (
     "id" TEXT NOT NULL,
@@ -408,6 +414,33 @@ CREATE TABLE "OrderItem" (
 );
 
 -- CreateTable
+CREATE TABLE "ReturnRequest" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "userId" TEXT,
+    "status" "ReturnStatus" NOT NULL DEFAULT 'REQUESTED',
+    "reason" "ReturnReason" NOT NULL,
+    "comment" TEXT,
+    "decisionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "decidedAt" TIMESTAMP(3),
+    "receivedAt" TIMESTAMP(3),
+    "refundedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ReturnRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ReturnRequestItem" (
+    "id" TEXT NOT NULL,
+    "returnRequestId" TEXT NOT NULL,
+    "orderItemId" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL DEFAULT 1,
+
+    CONSTRAINT "ReturnRequestItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Review" (
     "id" TEXT NOT NULL,
     "productId" TEXT NOT NULL,
@@ -688,6 +721,15 @@ CREATE INDEX "OrderItem_orderId_idx" ON "OrderItem"("orderId");
 CREATE INDEX "OrderItem_productId_idx" ON "OrderItem"("productId");
 
 -- CreateIndex
+CREATE INDEX "ReturnRequest_status_createdAt_idx" ON "ReturnRequest"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ReturnRequest_orderId_idx" ON "ReturnRequest"("orderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ReturnRequestItem_returnRequestId_orderItemId_key" ON "ReturnRequestItem"("returnRequestId", "orderItemId");
+
+-- CreateIndex
 CREATE INDEX "Review_productId_status_createdAt_idx" ON "Review"("productId", "status", "createdAt");
 
 -- CreateIndex
@@ -800,6 +842,18 @@ ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_variantId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_customDesignId_fkey" FOREIGN KEY ("customDesignId") REFERENCES "CustomDesign"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReturnRequest" ADD CONSTRAINT "ReturnRequest_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReturnRequest" ADD CONSTRAINT "ReturnRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReturnRequestItem" ADD CONSTRAINT "ReturnRequestItem_returnRequestId_fkey" FOREIGN KEY ("returnRequestId") REFERENCES "ReturnRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ReturnRequestItem" ADD CONSTRAINT "ReturnRequestItem_orderItemId_fkey" FOREIGN KEY ("orderItemId") REFERENCES "OrderItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Review" ADD CONSTRAINT "Review_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;

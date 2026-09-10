@@ -1,0 +1,56 @@
+enum ReturnStatus {
+  REQUESTED
+  ACCEPTED
+  REFUSED
+  RECEIVED
+  REFUNDED
+}
+
+enum ReturnReason {
+  CHANGE_OF_MIND
+  DEFECT
+  WRONG_ITEM
+  SIZE
+}
+
+/// Demande de retour, telle que les CGV la decrivent : 14 jours apres
+/// reception, depuis l'espace client. Une seule demande ouverte par commande.
+model ReturnRequest {
+  id String @id @default(uuid(7))
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  status ReturnStatus @default(REQUESTED)
+  reason ReturnReason
+
+  comment      String?
+  decisionNote String?
+
+  items ReturnRequestItem[]
+
+  createdAt  DateTime  @default(now())
+  decidedAt  DateTime?
+  receivedAt DateTime?
+  refundedAt DateTime?
+
+  @@index([status, createdAt])
+  @@index([orderId])
+}
+
+model ReturnRequestItem {
+  id String @id @default(uuid(7))
+
+  returnRequestId String
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  quantity Int @default(1)
+
+  @@unique([returnRequestId, orderItemId])
+}

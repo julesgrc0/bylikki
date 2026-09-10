@@ -2,7 +2,9 @@
 	import { toMessage } from '#lib/client/utils/errors';
 	import { formatPrice } from '#lib/client/utils/money';
 	import { cancelMyOrder, type getMyOrders } from '#lib/remote/order.remote';
+	import { getReturnableOrder } from '#lib/remote/returns.remote';
 	import { resolve } from '$app/paths';
+	import ReturnRequestForm from './ReturnRequestForm.svelte';
 
 	type Order = Awaited<ReturnType<typeof getMyOrders>>[number];
 
@@ -30,6 +32,9 @@
 
 	const dateFormatter = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
 	const cancellable = $derived(['PENDING', 'PAID', 'PREPARING'].includes(order.status));
+	const returnable = $derived(order.status === 'DELIVERED');
+
+	let returnOpen = $state(false);
 
 	let pending = $state(false);
 	let feedback = $state('');
@@ -98,6 +103,14 @@
 				Voir la facture
 			</a>
 		{/if}
+		{#if returnable}
+			<button
+				onclick={() => (returnOpen = !returnOpen)}
+				class="cursor-pointer border-b-[1.5px] border-ink/40 pb-px text-[13px] text-ink/75"
+			>
+				{returnOpen ? 'Fermer' : 'Demander un retour'}
+			</button>
+		{/if}
 		{#if cancellable}
 			<button
 				onclick={cancel}
@@ -109,3 +122,13 @@
 		{/if}
 	</div>
 </article>
+
+{#if returnOpen}
+	<div class="mt-2">
+		{#await getReturnableOrder(order.reference)}
+			<span class="text-[14px] text-ink/60">Chargement…</span>
+		{:then}
+			<ReturnRequestForm reference={order.reference} onclose={() => (returnOpen = false)} />
+		{/await}
+	</div>
+{/if}

@@ -21,6 +21,7 @@ model User {
   reviewVotes   ReviewVote[]
   redemptions   DiscountRedemption[]
   designs       CustomDesign[]
+  returns       ReturnRequest[]
 
   /// Cumul des achats payes, denormalise : il determine le palier de fidelite
   /// et redescend en cas de remboursement
