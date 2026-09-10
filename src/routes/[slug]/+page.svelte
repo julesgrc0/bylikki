@@ -48,6 +48,9 @@
 		product.customizations.some((option) => option.required && !selection[option.key])
 	);
 
+	/** Au-dela, signaler le stock n'apporte rien : ce n'est plus une information. */
+	const LOW_STOCK_HINT = 3;
+
 	const canonicalUrl = $derived(`${page.url.origin}${page.url.pathname}`);
 
 	/** Donnees structurees Product : prix, disponibilite et note moyenne. */
@@ -277,6 +280,15 @@
 				<span class="text-[13.5px] font-semibold text-pink-deep">{addError}</span>
 			{/if}
 
+			{#if variant && variant.stock > 0 && variant.stock <= LOW_STOCK_HINT}
+				<!-- Mention honnete : le stock affiche est le stock reel, pas un artifice. -->
+				<span class="text-[13.5px] font-semibold text-pink-deep">
+					{variant.stock === 1
+						? 'Dernier exemplaire — les pièces sont faites une par une.'
+						: `Il n'en reste que ${variant.stock}.`}
+				</span>
+			{/if}
+
 			{#if variant && variant.stock <= 0}
 				<RestockButton variantId={variant.id} />
 			{/if}
@@ -330,6 +342,18 @@
 			{/if}
 		</div>
 	</section>
+
+	{#if detail.boughtTogether.length > 0}
+		<section class="mt-12 flex flex-col gap-5">
+			<div class="flex flex-col gap-1">
+				<h2 class="m-0 text-[24px] font-semibold lg:text-[30px]">Souvent pris ensemble</h2>
+				<p class="m-0 text-[14.5px] text-ink/65">
+					D'après les commandes passées, ces pièces partent souvent avec celle-ci.
+				</p>
+			</div>
+			<ProductGrid products={detail.boughtTogether} compact />
+		</section>
+	{/if}
 
 	{#if detail.related.length > 0}
 		<section class="mt-12 flex flex-col gap-6">

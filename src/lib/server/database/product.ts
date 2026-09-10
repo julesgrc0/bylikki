@@ -285,6 +285,54 @@ export async function listRelatedProducts(productId: string, categorySlugs: stri
 	return products.map(toProductCard);
 }
 
+/**
+ * Pieces achetees en meme temps que celle-ci. La donnee existe deja dans les
+ * commandes : il ne manquait que la lecture. On ne retient que les commandes
+ * reellement payees, sinon un panier abandonne influencerait la suggestion.
+ */
+export async function listBoughtTogether(productId: string, limit = 4) {
+	const orders = await prisma.orderItem.findMany({
+		where: { productId, order: { paymentStatus: 'PAID' } },
+		select: { orderId: true },
+		take: 300
+	});
+
+	if (orders.length === 0) {
+		return [];
+	}
+
+	const companions = await prisma.orderItem.groupBy({
+		by: ['productId'],
+		where: {
+			orderId: { in: orders.map((entry) => entry.orderId) },
+			productId: { not: null },
+			NOT: { productId }
+		},
+		_sum: { quantity: true },
+		orderBy: { _sum: { quantity: 'desc' } },
+		take: limit
+	});
+
+	const ids = companions.map((entry) => entry.productId).filter((id): id is string => id !== null);
+
+	if (ids.length === 0) {
+		return [];
+	}
+
+	const products = await prisma.product.findMany({
+		where: { id: { in: ids }, ...publishedOnly },
+		select: productCardSelect
+	});
+
+	/** L'ordre de frequence prime sur l'ordre renvoye par la base. */
+	const byId = new Map(products.map((product) => [product.id, product]));
+
+	return ids
+		.map((id) => byId.get(id))
+		.filter((product): product is NonNullable<typeof product> => Boolean(product))
+		.map(toProductCard);
+}
+
 export type ProductDetail = NonNullable<Awaited<ReturnType<typeof findProductBySlug>>>;
 
 export function findProductBySlug(slug: string) {

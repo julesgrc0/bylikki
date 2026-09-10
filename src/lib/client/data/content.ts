@@ -52,6 +52,7 @@ export const universeLinks: (NavLink & { bg: string; star: string })[] = [
 ];
 
 export const infoLinks: NavLink[] = [
+	{ label: 'Suivre ma commande', href: resolve('/suivi') },
 	{ label: 'Avis', href: resolve('/#avis') },
 	{ label: 'À propos', href: resolve('/#a-propos') },
 	{ label: 'CGU', href: resolve('/legal?doc=cgu') },

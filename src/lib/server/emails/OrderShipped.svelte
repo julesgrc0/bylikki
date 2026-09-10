@@ -28,5 +28,9 @@
 		</Section>
 	{/if}
 
-	<CallToAction href="{origin}/profile" label="Voir ma commande" />
+	<CallToAction href="{origin}/suivi" label="Suivre ma commande" />
+
+	<Text style={styles.small}>
+		Le suivi fonctionne sans connexion : la référence {reference} et ton adresse e-mail suffisent.
+	</Text>
 </Layout>

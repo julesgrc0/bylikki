@@ -4,6 +4,7 @@ import { countEvent, recordSearchMiss } from '#lib/server/database/metrics';
 import {
 	findProductBySlug,
 	getSearchFacets,
+	listBoughtTogether,
 	listFeaturedProducts,
 	listRelatedProducts,
 	searchProducts,
@@ -23,15 +24,18 @@ export const getProduct = query(slugSchema, async (slug) => {
 		error(404, "Cette création n'existe pas ou n'est plus en ligne.");
 	}
 
-	const related = await listRelatedProducts(
-		product.id,
-		product.categories.map((category) => category.slug)
-	);
+	const [related, boughtTogether] = await Promise.all([
+		listRelatedProducts(
+			product.id,
+			product.categories.map((category) => category.slug)
+		),
+		listBoughtTogether(product.id)
+	]);
 
 	/** Mesure agregee, sans identifiant : elle n'attend pas la reponse. */
 	void countEvent('product_view');
 
-	return { product, related };
+	return { product, related, boughtTogether };
 });
 
 export const searchCatalogue = query(searchFiltersSchema, async (filters) => {
