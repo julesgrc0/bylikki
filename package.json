@@ -17,8 +17,6 @@
 		"db:generate": "prisma generate --schema=./prisma",
 		"db:view": "prisma studio",
 		"db:push": "prisma db push --schema=./prisma --accept-data-loss",
-		"db:migrate": "prisma migrate dev",
-		"db:deploy": "prisma migrate deploy",
 		"sv:test": "vitest run"
 	},
 	"devDependencies": {

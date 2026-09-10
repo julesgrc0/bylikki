@@ -40,14 +40,18 @@ démarrer avec un message qui la nomme (`src/lib/server/utils/env.ts`).
 
 **Où** : la base de production, une fois `PRISMA_DATABASE_URL` en place.
 
-**Quoi** : `bun db:deploy`. La migration initiale est dans
-`prisma/migrations/0000_initial/`, elle reconstruit tout le schéma depuis une base vide.
+**Quoi** : `bun db:push`. Le schéma Prisma est appliqué tel quel à la base, en écrasant ce qui
+diverge (`--accept-data-loss`). C'est le choix retenu pour l'instant : pas de migrations, le
+schéma fait foi.
 
-**Ne plus jamais utiliser `bun db:push` sur la production** : elle applique le schéma sans trace
-ni retour en arrière possible. Pour un changement futur : `bun db:migrate` en développement (qui
-écrit une nouvelle migration), puis `bun db:deploy` en production.
+**Ce que cela implique, tant que ce choix tient** : un changement de schéma qui supprime ou
+renomme une colonne emporte les données de cette colonne, sans trace ni retour en arrière. Sur une
+base contenant de vraies commandes, faire une sauvegarde juste avant chaque `db:push` est le seul
+filet. Le jour où la boutique tourne pour de bon, passer aux migrations se fait en une commande
+(`prisma migrate dev --name initial`) — dis-le moi et je m'en occupe.
 
-**C'est fait quand** : `bun db:deploy` affiche « All migrations have been successfully applied ».
+**C'est fait quand** : `bun db:push` affiche « Your database is now in sync with your Prisma
+schema ».
 
 Il faudra ensuite passer ton compte en administrateur, une seule fois, directement en base :
 
@@ -199,14 +203,14 @@ réservation courte pendant le paiement. Dis-le moi et je l'implémente.
 
 ## Récapitulatif
 
-| #   | Point                                  | Bloquant                               |
-| --- | -------------------------------------- | -------------------------------------- |
-| 1   | Secrets de production                  | oui                                    |
-| 2   | `bun db:deploy` + premier compte admin | oui                                    |
-| 3   | SIRET, adresse, hébergeur              | oui                                    |
-| 4   | Clés et webhook Stripe                 | oui                                    |
-| 5   | SMTP + SPF/DKIM/DMARC                  | oui                                    |
-| 6   | Photos, logo, textes alternatifs       | non, mais visible                      |
-| 7   | Tarifs de livraison                    | non, mais tu perds de l'argent         |
-| 8   | Audience, réservation de stock         | non                                    |
-| 9   | Cron, sauvegardes, supervision         | non le jour J, oui la semaine suivante |
+| #   | Point                                | Bloquant                               |
+| --- | ------------------------------------ | -------------------------------------- |
+| 1   | Secrets de production                | oui                                    |
+| 2   | `bun db:push` + premier compte admin | oui                                    |
+| 3   | SIRET, adresse, hébergeur            | oui                                    |
+| 4   | Clés et webhook Stripe               | oui                                    |
+| 5   | SMTP + SPF/DKIM/DMARC                | oui                                    |
+| 6   | Photos, logo, textes alternatifs     | non, mais visible                      |
+| 7   | Tarifs de livraison                  | non, mais tu perds de l'argent         |
+| 8   | Audience, réservation de stock       | non                                    |
+| 9   | Cron, sauvegardes, supervision       | non le jour J, oui la semaine suivante |

@@ -1,7 +1,7 @@
 # État du site et checklist avant mise en production
 
-Dernière mise à jour : septembre 2026, après le chantier de mise en production (migrations,
-paiement, e-mails, factures, SEO, tests) puis celui des fonctionnalités (paramètres
+Dernière mise à jour : septembre 2026, après le chantier de mise en production (paiement,
+e-mails, factures, SEO, tests) puis celui des fonctionnalités (paramètres
 d'administration, atelier de création, avis enrichis, promotions, fidélité, mesure).
 
 **Ce qui reste strictement à ta charge est réuni dans `docs/a-completer.md`.** Ce document-ci
@@ -33,7 +33,7 @@ Il est volontairement franc : tout ce qui est marqué **bloquant** empêche une 
 Vérifié en conditions réelles sur une base PostgreSQL locale : parcours de connexion complet,
 ajout au panier avec personnalisation, création et suppression de produit depuis l'admin,
 modération d'avis, changement de rôle, contrôle d'accès (403 pour un compte USER sur `/admin`).
-Depuis, également vérifiés : la migration initiale sur une base neuve, l'encaissement avec stock
+Depuis, également vérifiés : l'encaissement avec stock
 insuffisant et son remboursement, la facture réservée à sa propriétaire, le sitemap, le JSON-LD
 sous CSP, et la tâche de purge (401 sans jeton, compte-rendu avec).
 
@@ -46,17 +46,18 @@ décision de ta part, et sont détaillés dans `docs/a-completer.md` :
 
 1. **Secrets de production** — le site refuse désormais de démarrer si l'un d'eux manque
    (`src/lib/server/utils/env.ts`, appelé depuis `hooks.server.ts`).
-2. **`bun db:deploy` sur la base de production**, puis passage du premier compte en `ADMIN`.
+2. **`bun db:push` sur la base de production**, puis passage du premier compte en `ADMIN`.
 3. **SIRET, adresse et hébergeur** dans `src/lib/client/data/seller.ts` et `legal.ts`.
 4. **Clés et webhook Stripe** en production.
 5. **SMTP et enregistrements SPF/DKIM/DMARC** — sans quoi personne ne peut se connecter.
 
 ### Ce qui a été traité
 
-- **Migrations Prisma** : `prisma/migrations/0000_initial/` reconstruit le schéma complet depuis
-  une base vide. Vérifié en conditions réelles : `migrate deploy` sur une base neuve, puis
-  `migrate diff` contre le schéma, qui ne renvoie aucun écart. Scripts `bun db:migrate` et
-  `bun db:deploy` ajoutés ; `db:push` ne doit plus servir en production.
+- **Base de données** : le schéma est appliqué par `bun db:push`, sans migrations. Choix assumé
+  pour l'instant — le schéma Prisma fait foi et écrase ce qui diverge. La contrepartie est qu'un
+  changement destructif ne laisse ni trace ni retour arrière : sauvegarder avant chaque poussée
+  sur une base contenant de vraies commandes. Le passage aux migrations reste possible à tout
+  moment, sans rien changer au schéma.
 - **Police manquante** : le `@font-face` de `Sabrina.woff2` a été retiré, ainsi que la famille en
   tête de `--font-hand`. Plus aucun 404 sur les pages. Caveat assure le rendu manuscrit, comme
   c'était déjà le cas en pratique.
@@ -202,7 +203,7 @@ d'exploitation restant.
 
 ### Depuis l'audit
 
-- **Le schéma s'applique par migration** : `bun db:deploy` couvre `RateLimit` comme le reste.
+- **Le schéma s'applique d'un bloc** : `bun db:push` couvre `RateLimit` comme le reste.
 - **La purge est planifiée** : `vercel.json` déclare une tâche quotidienne vers
   `/api/cron/retention`, protégée par `CRON_SECRET` comparé à temps constant. Vérifié : 401 sans
   jeton, 401 avec un mauvais jeton, compte-rendu chiffré avec le bon.
@@ -246,7 +247,7 @@ Reste :
 
 Il ne reste que des étapes qui te reviennent, dans cet ordre :
 
-1. Secrets de production, `bun db:deploy`, premier compte administrateur.
+1. Secrets de production, `bun db:push`, premier compte administrateur.
 2. Mentions légales : SIRET, adresse, hébergeur.
 3. Stripe (clés + webhook) et SMTP (compte + SPF/DKIM/DMARC), puis une commande de test de bout
    en bout : paiement, e-mail de confirmation, facture, expédition, remboursement.
